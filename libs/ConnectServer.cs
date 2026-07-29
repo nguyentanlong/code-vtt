@@ -15,7 +15,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Web.Configuration;
 
-namespace DongYWeb.libs
+namespace VTT.libs
 {
     public class ConnectServer
     {
