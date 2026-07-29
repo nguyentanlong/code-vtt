@@ -16,10 +16,10 @@ namespace VTT
         {
             if (!IsPostBack)
             {
-                // Nếu chưa qua bước login.aspx thì đá về trang login
+                // Nếu chưa qua bước child.aspx thì đá về trang login
                 if (Session["Pending_TaiKhoanID"] == null)
                 {
-                    Response.Redirect("~/login.aspx");
+                    Response.Redirect("~/child.aspx");
                     return;
                 }
 
@@ -62,16 +62,32 @@ namespace VTT
 
                 if (isSuccess)
                 {
-                    // OTP Đúng -> Chính thức lưu Session đăng nhập
-                    HttpContext.Current.Session["TaiKhoanID"] = taiKhoanId;
+                    if (isSuccess)
+                    {
+                        // 1. Chuyển từ Session Temp sang Session chính thức của hệ thống
+                        HttpContext.Current.Session["TaiKhoanID"] = taiKhoanId;
+                        HttpContext.Current.Session["NhanVienID"] = HttpContext.Current.Session["Pending_NhanVienID"];
+                        HttpContext.Current.Session["Username"] = HttpContext.Current.Session["Pending_Username"];
+                        HttpContext.Current.Session["HoTen"] = HttpContext.Current.Session["Pending_HoTen"];
+                        HttpContext.Current.Session["Email"] = HttpContext.Current.Session["Pending_Email"];
+                        HttpContext.Current.Session["CongTyID"] = HttpContext.Current.Session["Pending_CongTyID"];
+                        HttpContext.Current.Session["PhongBanID"] = HttpContext.Current.Session["Pending_PhongBanID"];
+                        HttpContext.Current.Session["ChucDanhID"] = HttpContext.Current.Session["Pending_ChucDanhID"];
 
-                    // Dọn dẹp Temp Session
-                    HttpContext.Current.Session.Remove("Pending_TaiKhoanID");
-                    HttpContext.Current.Session.Remove("Pending_Email");
+                        // 2. Dọn dẹp toàn bộ Temp Session
+                        HttpContext.Current.Session.Remove("Pending_TaiKhoanID");
+                        HttpContext.Current.Session.Remove("Pending_Username");
+                        HttpContext.Current.Session.Remove("Pending_NhanVienID");
+                        HttpContext.Current.Session.Remove("Pending_HoTen");
+                        HttpContext.Current.Session.Remove("Pending_Email");
+                        HttpContext.Current.Session.Remove("Pending_CongTyID");
+                        HttpContext.Current.Session.Remove("Pending_PhongBanID");
+                        HttpContext.Current.Session.Remove("Pending_ChucDanhID");
 
-                    res.Success = true;
-                    res.Message = "Xác thực thành công!";
-                    res.RedirectUrl = "index.aspx";
+                        res.Success = true;
+                        res.Message = "Xác thực thành công!";
+                        res.RedirectUrl = "child.aspx"; // Hoặc trang bạn muốn chuyển đến
+                    }
                 }
                 else
                 {

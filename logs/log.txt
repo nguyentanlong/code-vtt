@@ -43,3 +43,8 @@ System.Data.SqlClient.SqlException (0x80131904): Could not find stored procedure
    at VTT.login.XuLyDangNhap(String username, String password) in D:\2026\chinh\pccc\vtt\VTT\login.aspx.cs:line 178
 ClientConnectionId:2722df49-5bd4-4818-935a-cf0555db53cc
 Error Number:2812,State:62,Class:16
+INFO  2026-07-29 17:55:22,375 [11] cong_ty                - GetList called with keyword: , trangThai: 
+INFO  2026-07-29 17:55:38,583 [10] cong_ty                - GetById called with id: 1
+INFO  2026-07-29 17:55:57,531 [11] cong_ty                - SaveData called with congTyId: 1, maCongTy: VTT_HOLDING, tenCongTy: Công ty Cổ phần Tập đoàn VTT1, tenVietTat: VTT Group1, maSoThue: 03123456781, diaChi: Số 123 Đường ABC, Quận 1, TP.HCM1, trangThai: 1, moTa: ok
+INFO  2026-07-29 17:55:58,979 [10] cong_ty                - GetList called with keyword: , trangThai: 
+INFO  2026-07-29 17:56:14,378 [10] cong_ty                - GetById called with id: 1

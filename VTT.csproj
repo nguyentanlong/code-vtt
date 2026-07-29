@@ -200,10 +200,16 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="assets\css\child.css" />
+    <Content Include="assets\css\danh-muc\cong-ty.css" />
     <Content Include="assets\css\login.css" />
     <Content Include="assets\css\verify_login.css" />
+    <Content Include="assets\js\child.js" />
+    <Content Include="assets\js\danh-muc\cong-ty.js" />
     <Content Include="assets\js\verify_login.js" />
     <Content Include="assets\js\login.js" />
+    <Content Include="child.aspx" />
+    <Content Include="DanhMuc\cong-ty.aspx" />
     <Content Include="Global.asax" />
     <Content Include="index.aspx" />
     <Content Include="login.aspx" />
@@ -213,6 +219,34 @@
   <ItemGroup>
     <Compile Include="App_Start\BundleConfig.cs" />
     <Compile Include="App_Start\RouteConfig.cs" />
+    <Compile Include="child.aspx.cs">
+      <DependentUpon>child.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="child.aspx.designer.cs">
+      <DependentUpon>child.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="child.Master.cs">
+      <DependentUpon>child.Master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="child.Master.designer.cs">
+      <DependentUpon>child.Master</DependentUpon>
+    </Compile>
+    <Compile Include="DanhMuc\child.Master.cs">
+      <DependentUpon>child.Master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="DanhMuc\child.Master.designer.cs">
+      <DependentUpon>child.Master</DependentUpon>
+    </Compile>
+    <Compile Include="DanhMuc\cong-ty.aspx.cs">
+      <DependentUpon>cong-ty.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="DanhMuc\cong-ty.aspx.designer.cs">
+      <DependentUpon>cong-ty.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
@@ -222,6 +256,9 @@
     </Compile>
     <Compile Include="index.aspx.designer.cs">
       <DependentUpon>index.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="libs\BasePage.cs">
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="libs\ConnectServer.cs" />
     <Compile Include="libs\Entities.cs" />
@@ -248,6 +285,12 @@
     <Content Include="assets\css\login.css.map" />
     <Content Include="assets\sass\verify_login.scss" />
     <Content Include="assets\css\verify_login.css.map" />
+    <Content Include="child.Master" />
+    <Content Include="assets\sass\child.scss" />
+    <Content Include="assets\css\child.css.map" />
+    <Content Include="DanhMuc\child.Master" />
+    <Content Include="assets\sass\danh-muc\cong-ty.scss" />
+    <Content Include="assets\css\danh-muc\cong-ty.css.map" />
     <None Include="packages.config" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
