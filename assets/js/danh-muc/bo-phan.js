@@ -1,9 +1,11 @@
 ﻿/**
  * Quản lý Danh mục Bộ Phận (bo-phan.js)
- * Khớp chuẩn 100% với HTML ID: #ddlModalPhongBan và #ddlFilterPhongBan
+ * Khớp chuẩn 100% với HTML ID: #ddlModalPhongBan, #ddlFilterPhongBan và Custom Select #chonTruongBoPhan
  */
 
 var CURRENT_CONG_TY_ID = 1;
+var CURRENT_EDIT_ID = 0; // Biến lưu trữ ID đang thao tác (0: Thêm mới, >0: Cập nhật)
+var CACHE_NHAN_VIEN_DATA = []; // Cache danh sách nhân viên để phục vụ re-render Modal
 
 $(document).ready(function () {
     // 1. Load các dropdown trước
@@ -103,7 +105,9 @@ function loadDropdownPhongBan() {
 }
 
 // Tải danh sách Nhân viên vào Dropdown Trưởng Bộ Phận
-function loadDropdownNhanVien() {
+function loadDropdownNhanVien(selectedId) {
+    var defaultVal = (selectedId !== undefined && selectedId !== null) ? selectedId : -1;
+
     $.ajax({
         type: "POST",
         url: window.location.pathname + "/GetListNhanVien",
@@ -112,27 +116,70 @@ function loadDropdownNhanVien() {
         dataType: "json",
         success: function (response) {
             var res = response.d;
-            if (res.success) {
-                var html = '<option value="">-- Chọn Trưởng Bộ Phận --</option>';
-                if (res.data && res.data.length > 0) {
-                    $.each(res.data, function (i, item) {
-                        html += '<option value="' + item.NhanVienID + '">' + item.TenHienThi + '</option>';
-                    });
-                }
-                $('#ddlTruongBoPhan').html(html);
-
-                if ($.fn.select2) {
-                    $('#ddlTruongBoPhan').select2().trigger('change.select2');
-                }
-                if ($.fn.selectpicker) {
-                    $('#ddlTruongBoPhan').selectpicker('refresh');
-                }
+            if (res.success && res.data) {
+                CACHE_NHAN_VIEN_DATA = res.data; // Lưu cache danh sách
+                renderCustomSelectTruongBoPhan(defaultVal);
             } else {
                 console.warn("Lỗi GetListNhanVien: " + res.message);
             }
         },
         error: function (xhr, status, error) {
             console.error("Lỗi GetListNhanVien:", xhr.responseText);
+        }
+    });
+}
+
+// Dựng giao diện Custom Select Trưởng bộ phận (#chonTruongBoPhan)
+function renderCustomSelectTruongBoPhan(defaultVal) {
+    var containerId = 'chonTruongBoPhan';
+    var $wrap = $('#' + containerId);
+    if (!$wrap.length) return;
+
+    var valCol = $wrap.data('value') || "NhanVienID";
+    var memCol = $wrap.data('member') || "TenHienThi";
+
+    // 1. Render lại danh sách HTML và gán giá trị mặc định
+    if (typeof window.renderSelect === 'function') {
+        window.renderSelect(CACHE_NHAN_VIEN_DATA, containerId, valCol, memCol, defaultVal);
+    }
+
+    // 2. Kích hoạt lại toàn bộ sự kiện Mouse/Click cho các thẻ <li>
+    if (typeof window.resetClickSelect === 'function') {
+        window.resetClickSelect(containerId);
+    }
+
+    // 3. Bind lại sự kiện Mở Dropdown cho ô Input vừa được sinh ra
+    bindEventForInput(containerId);
+}
+
+// Hàm bổ trợ bind lại sự kiện Click/Focus cho ô Input của Custom Select
+function bindEventForInput(_id) {
+    var $wrap = $('#' + _id);
+    var $input = $wrap.find('input[type="text"]');
+    var $ul = $('#sl' + _id);
+    var $list = $ul.find('li');
+
+    // Chống trùng lặp event bằng .off()
+    $input.off('focus click').on('focus click', function (e) {
+        e.stopPropagation();
+        var curVal = $(this).val() || "";
+
+        // Ẩn các dropdown khác đang mở trên màn hình
+        $('.clSelect').not('#' + _id).find('ul').removeClass('show').addClass('hide');
+
+        // Hiển thị danh sách của dropdown hiện tại
+        $list.removeClass('hide');
+        $ul.removeClass('hide').addClass('show');
+
+        if (curVal === "-- Chọn --") {
+            $(this).val('');
+        }
+    });
+
+    // Bắt sự kiện click ngoài màn hình để đóng dropdown
+    $(document).off('click.' + _id).on('click.' + _id, function (e) {
+        if (!$(e.target).closest('#' + _id).length) {
+            $ul.removeClass('show').addClass('hide');
         }
     });
 }
@@ -157,9 +204,9 @@ function renderTableBoPhan(list) {
             html += '<td>' + (item.TenTruongBoPhan || '<i class="text-muted">Chưa có</i>') + '</td>';
             html += '<td class="text-center">' + item.ThuTu + '</td>';
             html += '<td class="text-center">' + trangThaiBadge + '</td>';
-            html += '<td class="text-center">' + item.NgayTaoText + '</td>';
+            html += '<td class="text-center">' + (item.NgayTaoText || '') + '</td>';
             html += '<td class="text-center">';
-            html += '  <button class="btn btn-sm btn-outline-primary me-1" onclick="openModalEdit('
+            html += '  <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="openModalEdit('
                 + item.BoPhanID + ','
                 + item.PhongBanID + ',\''
                 + safeMa + '\',\''
@@ -183,6 +230,7 @@ function renderTableBoPhan(list) {
 
 function openModalAdd() {
     clearForm();
+    CURRENT_EDIT_ID = 0; // Đặt ID về 0 khi thêm mới
     $('#modalTitle').text('Thêm Mới Bộ Phận');
 
     // Tự động chọn phòng ban đang lọc ngoài màn hình (nếu có)
@@ -195,27 +243,31 @@ function openModalAdd() {
         $('#ddlModalPhongBan').trigger('change.select2');
     }
 
-    $('#btnSave').attr('onclick', 'saveBoPhan(0)');
+    // Reset Custom Select Trưởng bộ phận về mặc định
+    renderCustomSelectTruongBoPhan(-1);
+
     $('#modalBoPhan').modal('show');
 }
 
 function openModalEdit(boPhanId, phongBanId, maBoPhan, tenBoPhan, truongBoPhanId, thuTu, trangThai) {
     clearForm();
+    CURRENT_EDIT_ID = boPhanId; // Gán ID bộ phận cần sửa
     $('#modalTitle').text('Cập Nhật Bộ Phận');
 
-    // Đã đổi thành #ddlModalPhongBan
     $('#ddlModalPhongBan').val(phongBanId);
     $('#txtMaBoPhan').val(maBoPhan);
     $('#txtTenBoPhan').val(tenBoPhan);
-    $('#ddlTruongBoPhan').val(truongBoPhanId ? truongBoPhanId : "");
     $('#txtThuTu').val(thuTu);
     $('#chkTrangThai').prop('checked', trangThai === 1);
 
     if ($.fn.select2) {
-        $('#ddlModalPhongBan, #ddlTruongBoPhan').trigger('change.select2');
+        $('#ddlModalPhongBan').trigger('change.select2');
     }
 
-    $('#btnSave').attr('onclick', 'saveBoPhan(' + boPhanId + ')');
+    // Chọn đúng Nhân viên Trưởng bộ phận cho Custom Select
+    var selId = truongBoPhanId ? truongBoPhanId : -1;
+    renderCustomSelectTruongBoPhan(selId);
+
     $('#modalBoPhan').modal('show');
 }
 
@@ -223,12 +275,15 @@ function clearForm() {
     $('#txtMaBoPhan').val('');
     $('#txtTenBoPhan').val('');
     $('#ddlModalPhongBan').val('');
-    $('#ddlTruongBoPhan').val('');
     $('#txtThuTu').val(0);
     $('#chkTrangThai').prop('checked', true);
 
+    if (typeof window.clearSelect === 'function') {
+        window.clearSelect('chonTruongBoPhan');
+    }
+
     if ($.fn.select2) {
-        $('#ddlModalPhongBan, #ddlTruongBoPhan').trigger('change.select2');
+        $('#ddlModalPhongBan').trigger('change.select2');
     }
 }
 
@@ -236,13 +291,21 @@ function clearForm() {
 // LƯU DỮ LIỆU
 // ==========================================
 
+// Hàm saveData() khớp chính xác với onclick="saveData()" trên HTML
+function saveData() {
+    saveBoPhan(CURRENT_EDIT_ID);
+}
+
 function saveBoPhan(boPhanId) {
-    // Đã đổi thành #ddlModalPhongBan
     var phongBanId = parseInt($('#ddlModalPhongBan').val()) || 0;
     var maBoPhan = $('#txtMaBoPhan').val().trim();
     var tenBoPhan = $('#txtTenBoPhan').val().trim();
-    var truongBoPhanVal = $('#ddlTruongBoPhan').val();
-    var truongBoPhanId = truongBoPhanVal ? parseInt(truongBoPhanVal) : null;
+
+    // Lấy đúng ID Nhân viên từ thuộc tính data-selected của Custom Select #chonTruongBoPhan
+    var $inputSelected = $('#chonTruongBoPhan input[type="text"]');
+    var rawSelected = $inputSelected.attr('data-selected');
+    var truongBoPhanId = (rawSelected && rawSelected !== "-1" && rawSelected !== "") ? parseInt(rawSelected) : null;
+
     var thuTu = parseInt($('#txtThuTu').val()) || 0;
     var trangThai = $('#chkTrangThai').is(':checked') ? 1 : 0;
 

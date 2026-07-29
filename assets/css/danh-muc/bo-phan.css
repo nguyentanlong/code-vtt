@@ -18,4 +18,10 @@
   background-color: #ffffff !important;
   color: #333 !important; }
 
+.hide {
+  display: none; }
+
+.show {
+  display: block; }
+
 /*# sourceMappingURL=bo-phan.css.map */

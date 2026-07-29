@@ -97,7 +97,7 @@ namespace VTT.DanhMuc
                     return new { success = (responseCode == 1), message = responseMsg };
                 }
 
-                return new { success = true, message = boPhanId == 0 ? "Thêm mới bộ phận thành công!" : "Cập nhật bộ phận thành công!" };
+                return new { success = false, message = "Lưu thất bại, không nhận được phản hồi từ cơ sở dữ liệu!" };
             }
             catch (Exception ex)
             {
@@ -118,13 +118,12 @@ namespace VTT.DanhMuc
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object>
-        {
-            { "@CongTyID", congTyId },
-            { "@Keyword", DBNull.Value },
-            { "@TrangThai", (byte)1 } // Chỉ lấy nhân viên đang làm việc
-        };
+                {
+                    { "@CongTyID", congTyId },
+                    { "@Keyword", DBNull.Value },
+                    { "@TrangThai", (byte)1 } // Chỉ lấy nhân viên đang làm việc
+                };
 
-                // Gọi đúng Stored Procedure đã tạo
                 DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMNhanVien_GetList", pars);
                 DataTable dt = ds.Tables[0];
 
@@ -136,7 +135,6 @@ namespace VTT.DanhMuc
                     string tenPhong = dt.Columns.Contains("TenPhongBan") && dr["TenPhongBan"] != DBNull.Value ? dr["TenPhongBan"].ToString() : "Chưa thuộc PB";
                     string tenBoPhan = dt.Columns.Contains("TenBoPhan") && dr["TenBoPhan"] != DBNull.Value ? dr["TenBoPhan"].ToString() : "";
 
-                    // Ghép chuỗi theo thứ tự: Phòng Ban - Bộ Phận - Tên Nhân Viên (Mã NV)
                     string tenBoPhanText = !string.IsNullOrEmpty(tenBoPhan) ? $" - {tenBoPhan}" : "";
                     string tenHienThi = $"{tenPhong}{tenBoPhanText} - {hoTen} ({maNV})";
 
@@ -167,13 +165,12 @@ namespace VTT.DanhMuc
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object>
-        {
-            { "@CongTyID", congTyId },
-            { "@Keyword", DBNull.Value },
-            { "@TrangThai", (byte)1 } // Chỉ lấy phòng ban đang hoạt động
-        };
+                {
+                    { "@CongTyID", congTyId },
+                    { "@Keyword", DBNull.Value },
+                    { "@TrangThai", (byte)1 } // Chỉ lấy phòng ban đang hoạt động
+                };
 
-                // Gọi lại Stored Procedure sp_chinh_DMPhongBan_GetList
                 DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMPhongBan_GetList", pars);
                 DataTable dt = ds.Tables[0];
 
