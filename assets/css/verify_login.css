@@ -1,0 +1,31 @@
+body {
+  background: #0f172a;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center; }
+
+.otp-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 2.5rem;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); }
+
+.otp-input {
+  letter-spacing: 12px;
+  font-size: 26px;
+  font-weight: bold;
+  text-align: center; }
+
+.timer-text {
+  font-size: 13.5px;
+  color: #dc2626;
+  font-weight: 600; }
+
+.resend-box {
+  font-size: 13px;
+  color: #64748b; }
+
+/*# sourceMappingURL=verify_login.css.map */

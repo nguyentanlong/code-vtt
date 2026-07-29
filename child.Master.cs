@@ -7,11 +7,11 @@ using System.Web.UI.WebControls;
 
 namespace VTT
 {
-    public partial class index : System.Web.UI.Page
+    public partial class child : System.Web.UI.MasterPage
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            Response.Redirect("~/login.aspx");
+
         }
     }
 }

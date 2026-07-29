@@ -200,8 +200,14 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="assets\css\login.css" />
+    <Content Include="assets\css\verify_login.css" />
+    <Content Include="assets\js\verify_login.js" />
+    <Content Include="assets\js\login.js" />
     <Content Include="Global.asax" />
     <Content Include="index.aspx" />
+    <Content Include="login.aspx" />
+    <Content Include="verify_login.aspx" />
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
@@ -221,9 +227,27 @@
     <Compile Include="libs\Entities.cs" />
     <Compile Include="libs\libs.cs" />
     <Compile Include="libs\Process.cs" />
+    <Compile Include="login.aspx.cs">
+      <DependentUpon>login.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="login.aspx.designer.cs">
+      <DependentUpon>login.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="verify_login.aspx.cs">
+      <DependentUpon>verify_login.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="verify_login.aspx.designer.cs">
+      <DependentUpon>verify_login.aspx</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="assets\sass\login.scss" />
+    <Content Include="assets\css\login.css.map" />
+    <Content Include="assets\sass\verify_login.scss" />
+    <Content Include="assets\css\verify_login.css.map" />
     <None Include="packages.config" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
@@ -232,6 +256,7 @@
       <DependentUpon>Web.config</DependentUpon>
     </None>
   </ItemGroup>
+  <ItemGroup />
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>

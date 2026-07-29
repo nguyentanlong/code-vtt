@@ -1,14 +1,4 @@
-﻿//using log4net;
-//using System;
-//using System.Collections.Generic;
-//using System.Data;
-//using System.Data.SqlClient;
-//using System.Linq;
-//using System.Web;
-//using System.Web.Configuration;
-//namespace DongYWeb.libs { public class ConnectServer { public SqlConnection sqlConnect; ILog log = log4net.LogManager.GetLogger(typeof(ConnectServer)); public void OpenServer() { log.Info("ConnectServer => OpenServer"); if (sqlConnect != null) if (sqlConnect.State == ConnectionState.Open) sqlConnect.Close(); sqlConnect = new SqlConnection(); sqlConnect.ConnectionString = WebConfigurationManager.AppSettings["sqlconnection"]; sqlConnect.Open(); } public DataTable ShowTable(string strQuery) { log.Info("ConnectServer => ShowTable " + strQuery); DataTable table = new DataTable(); OpenServer(); SqlDataAdapter adapter = new SqlDataAdapter(strQuery, sqlConnect); try { adapter.Fill(table); } catch (Exception ex) { } sqlConnect.Close(); sqlConnect.Dispose(); sqlConnect = null; return table; } public string SaveInfo(string _strStore) { log.Info("ConnectServer => SaveInfo " + _strStore); try { OpenServer(); SqlCommand command = new SqlCommand(_strStore, sqlConnect); command.ExecuteNonQuery(); sqlConnect.Close(); sqlConnect.Dispose(); sqlConnect = null; return "1"; } catch (Exception ex) { return ""; } } } }
-
-using log4net;
+﻿using log4net;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -119,6 +109,45 @@ namespace VTT.libs
             catch (Exception ex)
             {
                 log.Error("Lỗi ExecuteDataset: " + sql, ex);
+                throw;
+            }
+            return ds;
+        }
+
+        /// <summary>
+        /// Thực thi Stored Procedure trả về DataSet
+        /// </summary>
+        public DataSet ExecuteDatasetStoredProcedure(string spName, Dictionary<string, object> parameters)
+        {
+            DataSet ds = new DataSet();
+            try
+            {
+                using (SqlConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(spName, conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure; // Khai báo là Stored Procedure
+                        cmd.CommandTimeout = 60;
+
+                        if (parameters != null)
+                        {
+                            foreach (var p in parameters)
+                            {
+                                cmd.Parameters.AddWithValue(p.Key, p.Value ?? DBNull.Value);
+                            }
+                        }
+
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(ds);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi ExecuteDatasetStoredProcedure: " + spName, ex);
                 throw;
             }
             return ds;
