@@ -1,0 +1,23 @@
+/* Assets/css/danh-muc/phong-ban.css */
+.required::after {
+    content: " *";
+    color: red;
+    font-weight: bold;
+}
+
+#tblDataPhongBan td {
+    vertical-align: middle;
+}
+
+.badge-active {
+    background-color: #28a745;
+}
+
+.badge-inactive {
+    background-color: #dc3545;
+}
+
+.tree-indent {
+    display: inline-block;
+    width: 20px;
+}

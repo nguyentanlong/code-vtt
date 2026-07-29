@@ -1,0 +1,21 @@
+.page-container {
+  color: #333; }
+
+.card {
+  background-color: #ffffff !important;
+  border-radius: 8px;
+  border: 1px solid #e3e6f0; }
+
+.table {
+  color: #333 !important; }
+
+.table thead th {
+  background-color: #f8f9fc !important;
+  color: #4e73df !important;
+  font-weight: 600; }
+
+.modal-content {
+  background-color: #ffffff !important;
+  color: #333 !important; }
+
+/*# sourceMappingURL=bo-phan.css.map */

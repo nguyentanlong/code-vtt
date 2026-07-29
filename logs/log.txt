@@ -48,3 +48,27 @@ INFO  2026-07-29 17:55:38,583 [10] cong_ty                - GetById called with 
 INFO  2026-07-29 17:55:57,531 [11] cong_ty                - SaveData called with congTyId: 1, maCongTy: VTT_HOLDING, tenCongTy: Công ty Cổ phần Tập đoàn VTT1, tenVietTat: VTT Group1, maSoThue: 03123456781, diaChi: Số 123 Đường ABC, Quận 1, TP.HCM1, trangThai: 1, moTa: ok
 INFO  2026-07-29 17:55:58,979 [10] cong_ty                - GetList called with keyword: , trangThai: 
 INFO  2026-07-29 17:56:14,378 [10] cong_ty                - GetById called with id: 1
+INFO  2026-07-29 18:12:46,446 [13] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 
+INFO  2026-07-29 18:12:46,930 [30] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 1
+INFO  2026-07-29 18:13:11,499 [11] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 
+INFO  2026-07-29 18:13:12,014 [23] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 1
+INFO  2026-07-29 18:13:16,494 [13] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 
+INFO  2026-07-29 18:13:16,998 [30] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 1
+INFO  2026-07-29 18:15:16,529 [13] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 
+INFO  2026-07-29 18:15:17,034 [30] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 1
+INFO  2026-07-29 18:33:28,152 [70] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 
+INFO  2026-07-29 18:33:28,666 [87] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 1
+INFO  2026-07-29 18:35:45,506 [70] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 
+INFO  2026-07-29 18:35:46,016 [82] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 1
+INFO  2026-07-29 18:35:48,840 [79] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 0
+INFO  2026-07-29 18:35:51,978 [89] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 1
+INFO  2026-07-29 18:42:39,510 [12] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 1
+INFO  2026-07-29 18:42:39,569 [14] bo_phan                - DMBoPhan GetList called with phongBanId: 1, keyword: 
+INFO  2026-07-29 19:08:07,013 [10] bo_phan                - DMBoPhan GetList called with phongBanId: 0, keyword: 
+INFO  2026-07-29 19:08:30,014 [11] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 
+INFO  2026-07-29 19:08:30,512 [14] phong_ban              - DMPhongBan GetList called with congTyId: 1, keyword: , trangThai: 1
+INFO  2026-07-29 19:11:29,066 [10] bo_phan                - DMBoPhan GetList called with phongBanId: 0, keyword: 
+INFO  2026-07-29 19:13:15,913 [50] bo_phan                - DMBoPhan GetList called with phongBanId: 0, keyword: 
+INFO  2026-07-29 19:15:06,712 [10] bo_phan                - DMBoPhan GetList called with phongBanId: 0, keyword: 
+INFO  2026-07-29 19:16:54,777 [26] bo_phan                - DMBoPhan GetList called with phongBanId: 0, keyword: 
+INFO  2026-07-29 19:18:23,837 [10] bo_phan                - DMBoPhan GetList called with phongBanId: 0, keyword: 

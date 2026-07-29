@@ -1,0 +1,309 @@
+﻿.clSelect,
+.clSelectQR {
+    position: relative;
+    text-align: left;
+
+    ul {
+        list-style: none;
+        margin: 0;
+        position: absolute;
+        width: 100%;
+        top: 100%;
+        margin-top: 0;
+        left: 0;
+        background: #fff;
+        overflow-y: scroll !important;
+        z-index: 9999;
+        max-height: 350px;
+        border: 1px solid #ccc;
+        border-top: 0;
+        padding: 0;
+
+        li {
+            padding: 5px 15px;
+
+            &:nth-child(odd) {
+                background: #f7f7f7;
+            }
+
+            &.hover,
+            &.selected {
+                background: #d4f0d2;
+            }
+        }
+
+        &::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 2px rgba(126,126,126,0.3);
+            background-color: #F5F5F5;
+        }
+
+        &::-webkit-scrollbar {
+            width: 2px;
+            background-color: #F5F5F5;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background-color: rgba(126,126,126,1);
+        }
+    }
+}
+
+.clSelectQR {
+    ul {
+        left: 0;
+        width: 100%;
+        margin-top: 0;
+        font-size: 12px;
+    }
+
+    .code {
+        color: #ccc;
+        font-size: 17px;
+        display: inline-block;
+    }
+}
+
+.clSelectTable {
+    position: relative;
+    text-align: left;
+
+    &.cf-w30 {
+        .c-Table__head,
+        .c-Table__content {
+            .c-Table__item:first-child {
+                -webkit-box-flex: 0;
+                -ms-flex: 0 0 30%;
+                flex: 0 0 30%;
+                max-width: 30%;
+            }
+        }
+    }
+
+    &.col-split {
+        .c-Table__item {
+            -webkit-box-flex: 0;
+            -ms-flex: 0 0 50%;
+            flex: 0 0 50%;
+            max-width: 50%;
+        }
+    }
+
+    .c-Table {
+        list-style: none;
+        margin: 0;
+        position: absolute;
+        width: calc(100% - 30px);
+        top: 100%;
+        margin-top: 0;
+        left: 0;
+        background: #fff;
+        z-index: 9999;
+        max-height: 350px;
+        border: 1px solid #ccc;
+        border-top: 0;
+        padding: 0;
+        overflow: scroll;
+        width: 150%;
+
+        .c-Table__row {
+            &.selected {
+                background: #d4f0d2;
+            }
+        }
+
+        .c-Table__head {
+            position: sticky;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .c-Table__content,
+        .c-Table__head {
+            width: 120%;
+        }
+
+        &::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 2px rgba(126,126,126,0.3);
+            background-color: #F5F5F5;
+        }
+
+        &::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+            background-color: #F5F5F5;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background-color: rgba(126,126,126,1);
+        }
+    }
+}
+
+.clMultiSelectTable {
+    position: relative;
+    text-align: left;
+
+    .c-Table {
+        list-style: none;
+        margin: 0;
+        position: absolute;
+        width: calc(100% - 30px);
+        top: 100%;
+        margin-top: 0;
+        left: 0;
+        background: #fff;
+        z-index: 9999;
+        max-height: 350px;
+        border: 1px solid #ccc;
+        border-top: 0;
+        padding: 0;
+        overflow: scroll;
+        width: 100%;
+
+        .c-Table__head {
+            .c-Table__item {
+                &:first-child {
+                    position: relative;
+                }
+            }
+        }
+
+        .c-Table__row {
+            &.selected {
+                background: #d4f0d2;
+            }
+
+            .c-Table__item {
+                &.checkbox {
+                    padding: 0;
+                    margin: 0;
+
+                    input[type="checkbox"] {
+                        margin: 0;
+                        top: 50%;
+                        left: 50%;
+                        width: 25px;
+                        height: 25px;
+                        transform: translate(-50%, -50%);
+                    }
+                }
+
+                &:first-child {
+                    min-width: 50px;
+                }
+            }
+        }
+
+        .choose {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background-color: #4a7c46;
+            -webkit-transition: all .3s ease-in-out;
+            transition: all .3s ease-in-out;
+
+            &:hover {
+                opacity: 0.7;
+            }
+        }
+
+        .c-Table__head {
+            position: sticky;
+            top: 0;
+            left: 0;
+            z-index: 1;
+
+            .c-Table__item:first-child {
+                min-width: 50px;
+            }
+        }
+
+        .c-Table__content, .c-Table__head {
+            width: 100%;
+        }
+
+        &::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 2px rgba(126,126,126,0.3);
+            background-color: #F5F5F5;
+        }
+
+        &::-webkit-scrollbar {
+            width: 6px;
+            background-color: #F5F5F5;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background-color: rgba(126,126,126,1);
+        }
+    }
+}
+
+.c-accordion {
+    .content {
+        display: none;
+        -webkit-transition: all .3s ease-in-out;
+        transition: all .3s ease-in-out;
+    }
+
+    .item {
+        margin-bottom: 1px;
+
+        &.active {
+            button {
+                .fa-chevron-up {
+                    opacity: 1;
+                    top: 50%;
+                }
+
+                .fa-chevron-down {
+                    opacity: 0;
+                    top: 100%;
+                }
+            }
+
+            .content {
+                display: block;
+            }
+        }
+    }
+
+    button {
+        width: 100%;
+        position: relative;
+        border: 0;
+        background: #4a7c46;
+        color: #fff;
+        text-align: left;
+        padding: 5px;
+
+        i {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            -webkit-transition: all .3s ease-in-out;
+            transition: all .3s ease-in-out;
+        }
+
+        .fa-chevron-up {
+            opacity: 0;
+            top: 100%;
+        }
+    }
+
+    .icon {
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 30px;
+    }
+
+    .c-Table {
+        margin-top: 1px;
+    }
+}
