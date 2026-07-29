@@ -203,12 +203,14 @@
     <Content Include="assets\css\child.css" />
     <Content Include="assets\css\danh-muc\bo-phan.css" />
     <Content Include="assets\css\danh-muc\cong-ty.css" />
+    <Content Include="assets\css\danh-muc\nhan-vien.css" />
     <Content Include="assets\css\danh-muc\phong-ban.css" />
     <Content Include="assets\css\login.css" />
     <Content Include="assets\css\selects.css" />
     <Content Include="assets\css\verify_login.css" />
     <Content Include="assets\js\child.js" />
     <Content Include="assets\js\danh-muc\bo-phan.js" />
+    <Content Include="assets\js\danh-muc\nhan-vien.js" />
     <Content Include="assets\js\danh-muc\phong-ban.js" />
     <Content Include="assets\js\danh-muc\cong-ty.js" />
     <Content Include="assets\js\selects-v3.js" />
@@ -217,6 +219,7 @@
     <Content Include="child.aspx" />
     <Content Include="DanhMuc\bo-phan.aspx" />
     <Content Include="DanhMuc\cong-ty.aspx" />
+    <Content Include="DanhMuc\nhan-vien.aspx" />
     <Content Include="DanhMuc\phong-ban.aspx" />
     <Content Include="Global.asax" />
     <Content Include="index.aspx" />
@@ -261,6 +264,13 @@
     </Compile>
     <Compile Include="DanhMuc\cong-ty.aspx.designer.cs">
       <DependentUpon>cong-ty.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="DanhMuc\nhan-vien.aspx.cs">
+      <DependentUpon>nhan-vien.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="DanhMuc\nhan-vien.aspx.designer.cs">
+      <DependentUpon>nhan-vien.aspx</DependentUpon>
     </Compile>
     <Compile Include="DanhMuc\phong-ban.aspx.cs">
       <DependentUpon>phong-ban.aspx</DependentUpon>
@@ -319,6 +329,8 @@
     <Content Include="assets\css\danh-muc\bo-phan.css.map" />
     <Content Include="assets\sass\selects.scss" />
     <Content Include="assets\css\selects.css.map" />
+    <Content Include="assets\sass\danh-muc\nhan-vien.scss" />
+    <Content Include="assets\css\danh-muc\nhan-vien.css.map" />
     <None Include="packages.config" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>

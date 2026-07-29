@@ -5,4 +5,5 @@
     <a href="DanhMuc/cong-ty.aspx">DM Công ty</a>
     <a href="DanhMuc/phong-ban.aspx">DM Phòng ban</a>
     <a href="DanhMuc/bo-phan.aspx">DM Bộ phận</a>
+    <a href="DanhMuc/nhan-vien.aspx">DM Nhân viên</a>
 </asp:Content>

@@ -72,3 +72,8 @@ INFO  2026-07-29 19:13:15,913 [50] bo_phan                - DMBoPhan GetList cal
 INFO  2026-07-29 19:15:06,712 [10] bo_phan                - DMBoPhan GetList called with phongBanId: 0, keyword: 
 INFO  2026-07-29 19:16:54,777 [26] bo_phan                - DMBoPhan GetList called with phongBanId: 0, keyword: 
 INFO  2026-07-29 19:18:23,837 [10] bo_phan                - DMBoPhan GetList called with phongBanId: 0, keyword: 
+ERROR 2026-07-29 20:36:41,643 [95] nhan_vien              - Lỗi DMNhanVien SaveData: Column 'ResponseCode' does not belong to table Table.
+System.ArgumentException: Column 'ResponseCode' does not belong to table Table.
+   at System.Data.DataRow.GetDataColumn(String columnName)
+   at System.Data.DataRow.get_Item(String columnName)
+   at VTT.DanhMuc.nhan_vien.SaveData(Int64 nhanVienId, Int64 congTyId, String maNhanVien, String hoTen, Nullable`1 phongBanId, Byte trangThai) in D:\2026\chinh\pccc\vtt\VTT\DanhMuc\nhan-vien.aspx.cs:line 132
