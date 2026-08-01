@@ -1,27 +1,209 @@
-﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="child.master.cs" Inherits="VTT.DanhMuc.child" %>
+﻿<%@ Master Language="C#" AutoEventWireup="true" %>
+<script runat="server">
+    protected string displayName;
+    protected string initials;
+    protected string chatGreeting;
+
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        displayName = (Session["Username"] != null && !string.IsNullOrWhiteSpace(Session["Username"].ToString()))
+            ? Session["Username"].ToString()
+            : ((Session["HoTen"] != null && !string.IsNullOrWhiteSpace(Session["HoTen"].ToString()))
+                ? Session["HoTen"].ToString()
+                : "GĐ VTT");
+
+        if (string.IsNullOrWhiteSpace(displayName) || displayName == "GĐ VTT")
+        {
+            initials = "GD";
+        }
+        else
+        {
+            var parts = displayName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                initials = "GD";
+            }
+            else if (parts.Length == 1)
+            {
+                initials = parts[0].Substring(0, 1).ToUpperInvariant();
+            }
+            else
+            {
+                initials = parts[0].Substring(0, 1).ToUpperInvariant() + parts[1].Substring(0, 1).ToUpperInvariant();
+            }
+        }
+
+        chatGreeting = $"Xin chào {displayName}! Tôi có thể giúp gì cho bạn hôm nay?";
+    }
+</script>
 
 <!DOCTYPE html>
-
-<html>
+<html lang="vi">
 <head runat="server">
-    <link href="../assets/css/child.css" rel="stylesheet" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- 1. Bootstrap 5 CSS & Icons CDN (Tránh bị lỗi đường dẫn file local) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet" />
-
-    <title></title>
-    <asp:ContentPlaceHolder ID="head" runat="server">
-    </asp:ContentPlaceHolder>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tri Thức - VTT | Tổng Quan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="<%= ResolveUrl("~/assets/css/danh-muc/style.css") %>" rel="stylesheet" />
+    <asp:ContentPlaceHolder ID="head" runat="server"></asp:ContentPlaceHolder>
 </head>
 <body>
+    <script>
+        if (typeof window.__chromium_devtools_metrics_reporter !== 'function') {
+            window.__chromium_devtools_metrics_reporter = function () {};
+        }
+    </script>
     <form id="form1" runat="server">
-        <div>
-            <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server">
-            </asp:ContentPlaceHolder>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <div class="chat-overlay" id="chatOverlay"></div>
+
+        <div class="app">
+            <aside class="sidebar" id="sidebar">
+                <div class="brand">
+                    <div class="brand-logo">VTT</div>
+                    <div class="brand-name">TRI THỨC <span>- VTT</span></div>
+                </div>
+
+                <ul class="nav-list" id="navList">
+                    <li class="nav-item active" data-icon="home" data-page="tong-quan"><a href="<%= ResolveUrl("~/child.aspx") %>">Tổng Quan</a></li>
+                    <li class="nav-item" data-icon="folder" data-page="du-an"><a href="<%= ResolveUrl("~/DanhMuc/cong-ty.aspx") %>">Danh mục Công ty</a></li>
+                    <li class="nav-item" data-icon="truck" data-page="phong-ban"><a href="<%= ResolveUrl("~/DanhMuc/phong-ban.aspx") %>">Danh mục Phòng ban</a></li>
+                    <li class="nav-item" data-icon="pencil" data-page="bo-phan"><a href="<%= ResolveUrl("~/DanhMuc/bo-phan.aspx") %>">Danh mục Bộ phận</a></li>
+                    <li class="nav-item" data-icon="users" data-page="nhan-vien"><a href="<%= ResolveUrl("~/DanhMuc/nhan-vien.aspx") %>">Danh mục Nhân viên</a></li>
+                </ul>
+            </aside>
+
+            <div class="main-wrapper" id="mainWrapper">
+                <main class="main">
+                    <div class="topbar">
+                        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Mở menu">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6h18M3 12h18M3 18h18" />
+                            </svg>
+                        </button>
+
+                        <div class="search-wrap">
+                            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="7"></circle>
+                                <path d="m21 21-4.3-4.3"></path>
+                            </svg>
+                            <input type="text" placeholder="Tìm kiếm hoặc chat với Tri Thức - VTT..." />
+                            <span class="sparkle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l1.5 5.5L19 9l-5.5 1.5L12 16l-1.5-5.5L5 9l5.5-1.5z"></path>
+                                </svg>
+                            </span>
+                        </div>
+
+                        <div class="topbar-right">
+                            <button class="bell" type="button" aria-label="Thông báo">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                                    <path d="M10 21a2 2 0 0 0 4 0"></path>
+                                </svg>
+                            </button>
+                            <div class="user-chip">
+                                <div class="avatar"><%= System.Web.HttpUtility.HtmlEncode(initials) %></div>
+                                <span class="name"><%= System.Web.HttpUtility.HtmlEncode(displayName) %></span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="m6 9 6 6 6-6"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="pageContainer">
+                        <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server"></asp:ContentPlaceHolder>
+                    </div>
+
+                    <div class="footer">© 2025 Tri Thức - VTT. Tất cả quyền được bảo lưu.</div>
+                </main>
+
+                <aside class="chat-panel" id="chatPanel">
+                    <div class="chat-head">
+                        <div class="chat-bot-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="8" width="18" height="12" rx="2"></rect>
+                                <circle cx="8.5" cy="14" r="1.5" fill="currentColor"></circle>
+                                <circle cx="15.5" cy="14" r="1.5" fill="currentColor"></circle>
+                                <path d="M12 8V4M9 4h6"></path>
+                            </svg>
+                        </div>
+                        <h4>FlowChat - Tri Thức</h4>
+                        <button class="close-chat" id="chatClose" title="Thu gọn FlowChat" type="button">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6 6 18M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="chat-body" id="chatBody">
+                        <div class="msg-row bot">
+                            <div class="bot-avatar-sm">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="8" width="18" height="12" rx="2"></rect>
+                                    <circle cx="8.5" cy="14" r="1.5" fill="currentColor"></circle>
+                                    <circle cx="15.5" cy="14" r="1.5" fill="currentColor"></circle>
+                                </svg>
+                            </div>
+                            <div class="bubble"><%= System.Web.HttpUtility.HtmlEncode(chatGreeting) %></div>
+                        </div>
+
+                        <div class="mini-bars" id="miniBars"></div>
+
+                        <div class="suggest-list" id="suggestList">
+                            <button class="suggest-btn" type="button">Tổng quan doanh thu tháng này</button>
+                            <button class="suggest-btn" type="button">Danh sách công nợ quá hạn</button>
+                            <button class="suggest-btn" type="button">Tiến độ các dự án đang thi công</button>
+                            <button class="suggest-btn" type="button">Việc cần làm gấp hôm nay</button>
+                            <button class="suggest-btn blue" type="button">Báo cáo lợi nhuận dự án</button>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-row">
+                        <input type="text" placeholder="Nhập câu hỏi của bạn..." />
+                        <button class="send-btn" type="button" aria-label="Gửi">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </aside>
+            </div>
         </div>
+
+        <button class="chat-fab" id="chatFab" title="Mở FlowChat" type="button" aria-label="Mở FlowChat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="8" width="18" height="12" rx="2"></rect>
+                <circle cx="8.5" cy="14" r="1.5" fill="currentColor"></circle>
+                <circle cx="15.5" cy="14" r="1.5" fill="currentColor"></circle>
+                <path d="M12 8V4M9 4h6"></path>
+            </svg>
+            <span class="fab-dot"></span>
+        </button>
     </form>
+
+    <script>
+        (function () {
+            const el = document.getElementById('currentTimeDisplay');
+            if (!el) return;
+            const weekdays = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+            function updateClock() {
+                const now = new Date();
+                const day = weekdays[now.getDay()];
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const ss = String(now.getSeconds()).padStart(2, '0');
+                const dd = String(now.getDate()).padStart(2, '0');
+                const mo = String(now.getMonth() + 1).padStart(2, '0');
+                const yyyy = now.getFullYear();
+                el.textContent = `${day}, ${dd}/${mo}/${yyyy} ${hh}:${mm}:${ss}`;
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+        })();
+    </script>
+    <script src="<%= ResolveUrl("~/assets/js/danh-muc/script.js") %>"></script>
 </body>
-<script src="../assets/js/child.js"></script>
 </html>

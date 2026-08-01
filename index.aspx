@@ -1,15 +1,24 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="index.aspx.cs" Inherits="VTT.index" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" %>
 
-<!DOCTYPE html>
+    <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head runat="server">
-    <title></title>
-</head>
-<body>
-    <form id="form1" runat="server">
-        <div>hello
-        </div>
-    </form>
-</body>
-</html>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+
+    <head runat="server">
+        <title></title>
+    </head>
+
+    <body>
+        <script runat="server">
+        protected void Page_Load(object sender, EventArgs e)
+            {
+                Response.Redirect("~/login.aspx");
+            }
+        </script>
+        <form id="form1" runat="server">
+            <div>hello
+            </div>
+        </form>
+    </body>
+
+    </html>
