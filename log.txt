@@ -1,0 +1,4 @@
+xsp4
+Listening on address: 0.0.0.0
+Root directory: /app
+Listening on port: 5959 (non-secure)

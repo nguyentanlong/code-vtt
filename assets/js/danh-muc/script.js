@@ -52,6 +52,8 @@ function showPage(pageKey) {
 /* ---------- Bar + line chart ---------- */
 (function drawBarChart() {
   const svg = document.getElementById('barChart');
+  if (!svg) return; // trang này không có chart doanh thu, bỏ qua
+
   const labels = ['12/2024', '01/2025', '02/2025', '03/2025', '04/2025', '05/2025'];
   const revenue = [10.5, 8.3, 9.6, 9.0, 15.8, 17.0]; // in B
   const profit = [10.2, 8.0, 7.8, 9.0, 12.5, 12.8]; // for line, arbitrary path matching visual
@@ -61,7 +63,6 @@ function showPage(pageKey) {
   const barW = 34, gap = (chartW - barW * labels.length) / (labels.length + 1);
 
   let svgContent = '';
-  // gridlines + y labels
   [0, 5, 10, 15, 20].forEach(v => {
     const y = padT + chartH - (v / maxY) * chartH;
     svgContent += `<line x1="${padL}" y1="${y}" x2="${W - 10}" y2="${y}" stroke="#eef1f6" stroke-width="1"/>`;
@@ -90,6 +91,8 @@ function showPage(pageKey) {
 /* ---------- Donut chart ---------- */
 (function drawDonut() {
   const svg = document.getElementById('donutChart');
+  if (!svg) return; // trang này không có donut chart, bỏ qua
+
   const data = [
     { v: 48.6, color: '#16a34a' },
     { v: 28.9, color: '#f59e0b' },

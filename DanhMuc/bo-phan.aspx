@@ -1,5 +1,5 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/DanhMuc/child.Master" AutoEventWireup="true"
-    CodeBehind="bo-phan.aspx.cs" Inherits="VTT.DanhMuc.bo_phan" %>
+﻿<%@ Page Title="Quản lý Danh mục Công ty" Language="C#" MasterPageFile="~/DanhMuc/child.Master" AutoEventWireup="true"
+    CodeFile="bo-phan.aspx.cs" Inherits="VTT.DanhMuc.bo_phan" %>
     <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
         <link href="../assets/css/selects.css?v=<% Response.Write(VTT.libs.libs.randomVersion()); %>"
             rel="stylesheet" />

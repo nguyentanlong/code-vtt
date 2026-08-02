@@ -46,30 +46,17 @@ namespace VTT
             try
             {
                 string subject = $"[{otpCode}] Mã xác thực đăng nhập hệ thống VTT";
-                string body = $@"
-                    <div style='font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;'>
-                        <div style='max-width: 500px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px;'>
-                            <h2 style='color: #333;'>Mã Xác Thực Đăng Nhập</h2>
-                            <p>Xin chào <b>{hoTen}</b>,</p>
-                            <p>Mã OTP xác thực đăng nhập của bạn là:</p>
-                            <div style='text-align: center; margin: 20px 0;'>
-                                <span style='font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #2563eb; background: #eff6ff; padding: 10px 20px; border-radius: 6px; display: inline-block;'>{otpCode}</span>
-                            </div>
-                            <p style='color: #666; font-size: 13px;'>Mã này có hiệu lực trong <b>5 phút</b>. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p>
-                        </div>
-                    </div>";
+                string body = $@"<div style='font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;'><div style='max-width: 500px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px;'><h2 style='color: #333;'>Mã Xác Thực Đăng Nhập</h2><p>Xin chào <b>{hoTen}</b>,</p><p>Mã OTP xác thực đăng nhập của bạn là:</p><div style='text-align: center; margin: 20px 0;'><span style='font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #2563eb; background: #eff6ff; padding: 10px 20px; border-radius: 6px; display: inline-block;'>{otpCode}</span></div><p style='color: #666; font-size: 13px;'>Mã này có hiệu lực trong <b>5 phút</b>. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p></div></div>";
 
                 using (SmtpClient smtp = new SmtpClient())
+                using (MailMessage mail = new MailMessage())
                 {
-                    using (MailMessage mail = new MailMessage())
-                    {
-                        mail.To.Add(toEmail);
-                        mail.Subject = subject;
-                        mail.Body = body;
-                        mail.IsBodyHtml = true;
+                    mail.To.Add(toEmail);
+                    mail.Subject = subject;
+                    mail.Body = body;
+                    mail.IsBodyHtml = true;
 
-                        smtp.Send(mail);
-                    }
+                    smtp.Send(mail);
                 }
                 return true;
             }
@@ -85,11 +72,10 @@ namespace VTT
         /// </summary>
         private static string GetClientIP()
         {
-            string ip = HttpContext.Current.Request.ServerVariables["HTTP_CF_CONNECTING_IP"];
-            if (string.IsNullOrEmpty(ip))
-                ip = HttpContext.Current.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
-            if (string.IsNullOrEmpty(ip))
-                ip = HttpContext.Current.Request.UserHostAddress;
+            var ctx = HttpContext.Current;
+            string ip = ctx.Request.ServerVariables["HTTP_CF_CONNECTING_IP"];
+            if (string.IsNullOrEmpty(ip)) ip = ctx.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
+            if (string.IsNullOrEmpty(ip)) ip = ctx.Request.UserHostAddress;
             return ip ?? "127.0.0.1";
         }
 
@@ -126,8 +112,8 @@ namespace VTT
                     }
 
                     // Kiểm tra trạng thái khóa tài khoản
-                    bool isLocked = row["IsLocked"] != DBNull.Value && Convert.ToBoolean(row["IsLocked"]);
-                    byte trangThai = row["TrangThaiTK"] != DBNull.Value ? Convert.ToByte(row["TrangThaiTK"]) : (byte)0;
+                    bool isLocked = row.Table.Columns.Contains("IsLocked") && row["IsLocked"] != DBNull.Value && Convert.ToBoolean(row["IsLocked"]);
+                    byte trangThai = row.Table.Columns.Contains("TrangThaiTK") && row["TrangThaiTK"] != DBNull.Value ? Convert.ToByte(row["TrangThaiTK"]) : (byte)0;
 
                     if (isLocked || trangThai == 0)
                     {
@@ -137,11 +123,12 @@ namespace VTT
                     }
 
                     // --- XÁC THỰC MẬT KHẨU PBKDF2 ---
-                    string dbPasswordHash = row["PasswordHash"].ToString();
+                    string dbPasswordHash = row.Table.Columns.Contains("PasswordHash") ? row["PasswordHash"].ToString() : string.Empty;
+                    // bool isPasswordValid = libs.VerifyPassword(password, dbPasswordHash);
                     bool isPasswordValid = libs.libs.VerifyPassword(password, dbPasswordHash);
 
-                    object taiKhoanId = row["TaiKhoanID"];
-                    object nhanVienId = row["NhanVienID"] != DBNull.Value ? row["NhanVienID"] : null;
+                    object taiKhoanId = row.Table.Columns.Contains("TaiKhoanID") ? row["TaiKhoanID"] : null;
+                    object nhanVienId = row.Table.Columns.Contains("NhanVienID") && row["NhanVienID"] != DBNull.Value ? row["NhanVienID"] : null;
 
                     if (!isPasswordValid)
                     {
@@ -154,8 +141,8 @@ namespace VTT
                     }
 
                     // --- MẬT KHẨU ĐÚNG -> CHUYỂN BƯỚC XÁC THỰC OTP ---
-                    string email = row["EmailCongTy"] != DBNull.Value ? row["EmailCongTy"].ToString() : "";
-                    string hoTen = row["HoTen"] != DBNull.Value ? row["HoTen"].ToString() : username;
+                    string email = row.Table.Columns.Contains("EmailCongTy") && row["EmailCongTy"] != DBNull.Value ? row["EmailCongTy"].ToString() : "";
+                    string hoTen = row.Table.Columns.Contains("HoTen") && row["HoTen"] != DBNull.Value ? row["HoTen"].ToString() : username;
 
                     if (string.IsNullOrEmpty(email))
                     {
@@ -188,13 +175,13 @@ namespace VTT
 
                     // 4. Lưu Session TẠM THỜI (Lưu thông tin User để cấp Session chính thức bên verify_login)
                     HttpContext.Current.Session["Pending_TaiKhoanID"] = taiKhoanId;
-                    HttpContext.Current.Session["Pending_Username"] = row["Username"];
+                    HttpContext.Current.Session["Pending_Username"] = row.Table.Columns.Contains("Username") ? row["Username"] : username;
                     HttpContext.Current.Session["Pending_NhanVienID"] = nhanVienId;
                     HttpContext.Current.Session["Pending_HoTen"] = hoTen;
                     HttpContext.Current.Session["Pending_Email"] = email;
-                    HttpContext.Current.Session["Pending_CongTyID"] = row["CongTyID"];
-                    HttpContext.Current.Session["Pending_PhongBanID"] = row["PhongBanID"];
-                    HttpContext.Current.Session["Pending_ChucDanhID"] = row["ChucDanhID"];
+                    HttpContext.Current.Session["Pending_CongTyID"] = row.Table.Columns.Contains("CongTyID") ? row["CongTyID"] : null;
+                    HttpContext.Current.Session["Pending_PhongBanID"] = row.Table.Columns.Contains("PhongBanID") ? row["PhongBanID"] : null;
+                    HttpContext.Current.Session["Pending_ChucDanhID"] = row.Table.Columns.Contains("ChucDanhID") ? row["ChucDanhID"] : null;
 
                     res.Success = true;
                     res.Message = "Mã OTP đã được gửi về Email của bạn!";

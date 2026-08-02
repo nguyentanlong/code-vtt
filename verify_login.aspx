@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeFile="verify_login.aspx.cs" Inherits="VTT.verify_login" %>
 
     <!DOCTYPE html>
     <html lang="vi">

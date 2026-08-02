@@ -49,6 +49,7 @@
     <asp:ContentPlaceHolder ID="head" runat="server"></asp:ContentPlaceHolder>
 </head>
 <body>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         if (typeof window.__chromium_devtools_metrics_reporter !== 'function') {
             window.__chromium_devtools_metrics_reporter = function () {};
