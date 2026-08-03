@@ -9,7 +9,37 @@ const icons = {
   bank: '<path d="M3 21h18"/><path d="M4 21V10M20 21V10M8 21V10M16 21V10M2 10l10-6 10 6"/>',
   chart: '<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>',
   check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
-  users2: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3 2.7-5.5 6-5.5s6 2.5 6 5.5"/><path d="M13 14.8c1-.5 2-.8 3-.8 3.3 0 6 2.5 6 5.5"/>'
+  users2: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3 2.7-5.5 6-5.5s6 2.5 6 5.5"/><path d="M13 14.8c1-.5 2-.8 3-.8 3.3 0 6 2.5 6 5.5"/>',
+  proj: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2M2 12h20"/>',
+  groupRules: '<circle cx="8" cy="8" r="3"/><path d="M2 18c0-3 2.5-5 6-5s6 2 6 5"/><path d="M16 12a3 3 0 1 0 0-6"/><path d="M22 17c0-2-1.5-3.5-3.5-4M17 19l2 2 4-4"/>',
+  kindOfDocument: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
+
+  // 1. Nguồn trí thức (Knowledge Source): Cuốn sách đang mở phát sáng
+  source: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/><path d="M12 7v14"/>',
+
+  // 2. Quyền (Permissions/Authority): Chiếc chìa khóa mở lối
+  auth: '<circle cx="7.5" cy="15.5" r="3.5"/><path d="m10 13 10-10 3 3-1.5 1.5-2-2L18 8l-2-2-1.5 1.5 2 2-5 5"/>',
+
+  // 3. Tác vụ A.I (AI Task): Biểu tượng lấp lánh/trí tuệ nhân tạo (Sparkles)
+  aiTask: '<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/>',
+
+  // 4. Quyền 1 (Single Permission): Huy hiệu/Khiên bảo vệ chứa số 1
+  ruleOne: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M11 8h1v7m-2 0h4"/>',
+
+  // 5. Chức danh (Title/Designation): Thẻ tên nhân viên đeo cổ
+  title: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h5"/><circle cx="16" cy="14" r="2"/>',
+
+  // 6. Bản đồ tri thức (Knowledge Map): Các điểm nút mạng lưới kết nối (Nodes)
+  kMap: '<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M10.5 7 6.5 15.5M13.5 7l4 10.5M7.5 18h9"/>',
+
+  // 7. Tài khoản (Account): Hồ sơ cá nhân dạng thẻ tròn bo góc
+  account: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>',
+
+  // 8. Loại công trình (Building Type): Tòa nhà cao tầng / dự án xây dựng
+  building: '<path d="M3 21h18M5 21V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v18M9 6h2M9 10h2M9 14h2M14 6h2M14 10h2M14 14h2"/>',
+
+  // 9. Vai trò (Role): Vương miện hoặc mũ phân cấp vai trò quản trị
+  role: '<path d="M2 4l3 12h14l3-12-5 4-5-6-5 6Z"/><path d="M3 20h18"/>'
 };
 document.querySelectorAll('.nav-item').forEach(item => {
   const key = item.dataset.icon;

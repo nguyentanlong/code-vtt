@@ -1,0 +1,144 @@
+/* ============================================
+   VAI TRÒ DỰ ÁN - Chỉ override màu (vàng / cam / xanh dương)
+   Cấu trúc/kích thước dùng base từ style.css
+   ============================================ */
+
+:root {
+    --vtda-yellow: #f59e0b;
+    --vtda-yellow-dark: #d97706;
+    --vtda-yellow-bg: #fffbeb;
+
+    --vtda-orange: #f97316;
+    --vtda-orange-dark: #ea580c;
+    --vtda-orange-bg: #fff7ed;
+
+    --vtda-blue: #2563eb;
+    --vtda-blue-dark: #1d4ed8;
+    --vtda-blue-bg: #eff6ff;
+}
+
+/* Header button */
+.dm-header .btn-primary {
+    background: linear-gradient(135deg, var(--vtda-orange), var(--vtda-orange-dark));
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
+}
+
+.dm-header .btn-primary:hover {
+    background: var(--vtda-orange-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.45);
+}
+
+/* Filter bar */
+.dm-filter .btn-info {
+    background: linear-gradient(135deg, var(--vtda-blue), var(--vtda-blue-dark));
+}
+
+.dm-filter select#ddlSearchCongTy,
+.dm-filter input#txtSearchKeyword {
+    border: 1.5px solid #fcd34d;
+}
+
+.dm-filter select#ddlSearchCongTy:focus,
+.dm-filter input#txtSearchKeyword:focus {
+    border-color: var(--vtda-orange);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+/* Table header + highlight cells */
+.dm-table thead tr {
+    background: linear-gradient(135deg, var(--vtda-blue), #3b82f6);
+}
+
+.dm-table thead th {
+    background: transparent;
+    color: #fff;
+}
+
+.dm-table tbody tr {
+    border-bottom: 1px solid #fef3c7;
+}
+
+.dm-table tbody tr:hover {
+    background: var(--vtda-yellow-bg);
+}
+
+.dm-table tbody tr td:nth-child(4) {
+    color: var(--vtda-blue-dark);
+    font-weight: 600;
+}
+
+.dm-table tbody tr td:nth-child(5) {
+    font-weight: 700;
+    color: var(--vtda-orange-dark);
+}
+
+/* Action buttons - override màu nền */
+.btn-icon.text-edit {
+    background: var(--vtda-blue-bg);
+    border: 1px solid #bfdbfe;
+}
+
+.btn-icon.text-edit:hover {
+    background: var(--vtda-blue-dark);
+    color: #fff;
+}
+
+.btn-icon.text-delete {
+    background: var(--vtda-orange-bg);
+    border: 1px solid #fed7aa;
+}
+
+.btn-icon.text-delete:hover {
+    background: var(--vtda-orange-dark);
+    color: #fff;
+}
+
+.btn-icon.text-save {
+    color: #fff;
+    background: linear-gradient(135deg, var(--vtda-yellow), var(--vtda-yellow-dark));
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.35);
+}
+
+.btn-icon.text-save:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.45);
+}
+
+.btn-icon.text-cancel {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+}
+
+.btn-icon.text-cancel:hover {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+/* Inline edit inputs */
+.dm-table tbody tr td input.edit-mavaitro,
+.dm-table tbody tr td input.edit-tenvaitro,
+.dm-table tbody tr td input.edit-thutu,
+.dm-table tbody tr td select.edit-congty {
+    border: 1.5px solid var(--vtda-yellow);
+    background: var(--vtda-yellow-bg);
+}
+
+.dm-table tbody tr td input.edit-mavaitro:focus,
+.dm-table tbody tr td input.edit-tenvaitro:focus,
+.dm-table tbody tr td input.edit-thutu:focus,
+.dm-table tbody tr td select.edit-congty:focus {
+    border-color: var(--vtda-orange);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+    background: #fff;
+}
+
+.dm-table tbody tr td input.edit-thutu {
+    text-align: center;
+    font-weight: 700;
+}
+
+.dm-table tbody tr:has(input.edit-mavaitro) {
+    background: linear-gradient(90deg, var(--vtda-yellow-bg), #fff);
+    box-shadow: inset 3px 0 0 var(--vtda-orange);
+}

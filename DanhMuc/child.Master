@@ -72,6 +72,18 @@
                     <li class="nav-item" data-icon="truck" data-page="phong-ban"><a href="<%= ResolveUrl("~/DanhMuc/phong-ban.aspx") %>">Danh mục Phòng ban</a></li>
                     <li class="nav-item" data-icon="pencil" data-page="bo-phan"><a href="<%= ResolveUrl("~/DanhMuc/bo-phan.aspx") %>">Danh mục Bộ phận</a></li>
                     <li class="nav-item" data-icon="users" data-page="nhan-vien"><a href="<%= ResolveUrl("~/DanhMuc/nhan-vien.aspx") %>">Danh mục Nhân viên</a></li>
+                    <li class="nav-item" data-icon="proj" data-page="vai-tro-du-an"><a href="<%= ResolveUrl("~/DanhMuc/vai-tro-du-an.aspx") %>">Vai trò dự án</a></li>
+                    <li class="nav-item" data-icon="groupRules" data-page="nhom-quyen"><a href="<%= ResolveUrl("~/DanhMuc/nhom-quyen.aspx") %>">Nhóm quyền</a></li>
+                    <li class="nav-item" data-icon="kindOfDocument" data-page="loai-tai-lieu"><a href="<%= ResolveUrl("~/DanhMuc/loai-tai-lieu.aspx") %>">Loại tài liệu</a></li>
+                    <li class="nav-item" data-icon="source" data-page="nguon-tri-thuc"><a href="<%= ResolveUrl("~/DanhMuc/nguon-tri-thuc.aspx") %>">Nguồn tri thức</a></li>
+                    <li class="nav-item" data-icon="auth" data-page="quyen"><a href="<%= ResolveUrl("~/DanhMuc/quyen.aspx") %>">Quyền</a></li>
+                    <li class="nav-item" data-icon="aiTask" data-page="tac-nhan-ai"><a href="<%= ResolveUrl("~/DanhMuc/tac-nhan-ai.aspx") %>">Tác nhân A.I</a></li>
+                    <li class="nav-item" data-icon="ruleOne" data-page="danh-muc-rule"><a href="<%= ResolveUrl("~/DanhMuc/danh-muc-rule.aspx") %>">Danh mục Rules</a></li>
+                    <li class="nav-item" data-icon="title" data-page="chuc-danh"><a href="<%= ResolveUrl("~/DanhMuc/chuc-danh.aspx") %>">Chức Danh</a></li>
+                    <li class="nav-item" data-icon="kMap" data-page="knowledge-roadmap"><a href="<%= ResolveUrl("~/DanhMuc/knowlege-roadmap.aspx") %>">Knowledge Road Map</a></li>
+                    <li class="nav-item" data-icon="account" data-page="tai-khoan"><a href="<%= ResolveUrl("~/DanhMuc/tai-khoan.aspx") %>">Tài khoản</a></li>
+                    <li class="nav-item" data-icon="building" data-page="loai-cong-trinh"><a href="<%= ResolveUrl("~/DanhMuc/loai-cong-trinh.aspx") %>">Loại công trình</a></li>
+                    <li class="nav-item" data-icon="role" data-page="vai-tro"><a href="<%= ResolveUrl("~/DanhMuc/vai-tro.aspx") %>">Vai trò</a></li>
                 </ul>
             </aside>
 
@@ -195,11 +207,10 @@
                 const day = weekdays[now.getDay()];
                 const hh = String(now.getHours()).padStart(2, '0');
                 const mm = String(now.getMinutes()).padStart(2, '0');
-                const ss = String(now.getSeconds()).padStart(2, '0');
                 const dd = String(now.getDate()).padStart(2, '0');
                 const mo = String(now.getMonth() + 1).padStart(2, '0');
                 const yyyy = now.getFullYear();
-                el.textContent = `${day}, ${dd}/${mo}/${yyyy} ${hh}:${mm}:${ss}`;
+                el.textContent = `${day}, ${dd}/${mo}/${yyyy} ${hh}:${mm}`;
             }
             updateClock();
             setInterval(updateClock, 1000);
