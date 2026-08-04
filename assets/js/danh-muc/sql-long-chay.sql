@@ -382,3 +382,257 @@ VALUES
 ('llama-3.1-70b', 'Meta', 128000);
 
 */
+
+/*Loại tài liệu
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMLoaiTaiLieu_GetList
+    @CongTyID BIGINT,
+    @Keyword NVARCHAR(255) = NULL,
+    @TrangThai TINYINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT LoaiTaiLieuID, CongTyID, MaLoai, TenLoai, TrangThai
+    FROM dbo.DMLoaiTaiLieu WITH (NOLOCK)
+    WHERE CongTyID = @CongTyID
+      AND (@Keyword IS NULL OR @Keyword = '' OR MaLoai LIKE '%' + @Keyword + '%' OR TenLoai LIKE '%' + @Keyword + '%')
+      AND (@TrangThai IS NULL OR TrangThai = @TrangThai)
+    ORDER BY LoaiTaiLieuID DESC;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMLoaiTaiLieu_GetById
+    @LoaiTaiLieuID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT LoaiTaiLieuID, CongTyID, MaLoai, TenLoai, TrangThai
+    FROM dbo.DMLoaiTaiLieu WITH (NOLOCK)
+    WHERE LoaiTaiLieuID = @LoaiTaiLieuID;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMLoaiTaiLieu_Save
+    @LoaiTaiLieuID BIGINT = 0,
+    @CongTyID BIGINT,
+    @MaLoai VARCHAR(50),
+    @TenLoai NVARCHAR(255),
+    @TrangThai TINYINT = 1
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM dbo.DMLoaiTaiLieu WHERE CongTyID = @CongTyID AND MaLoai = @MaLoai AND LoaiTaiLieuID <> @LoaiTaiLieuID)
+    BEGIN
+        RAISERROR(N'Mã loại tài liệu đã tồn tại trong công ty này!', 16, 1);
+        RETURN;
+    END
+
+    IF @LoaiTaiLieuID = 0
+    BEGIN
+        INSERT INTO dbo.DMLoaiTaiLieu (CongTyID, MaLoai, TenLoai, TrangThai)
+        VALUES (@CongTyID, @MaLoai, @TenLoai, @TrangThai);
+    END
+    ELSE
+    BEGIN
+        UPDATE dbo.DMLoaiTaiLieu
+        SET MaLoai = @MaLoai,
+            TenLoai = @TenLoai,
+            TrangThai = @TrangThai
+        WHERE LoaiTaiLieuID = @LoaiTaiLieuID AND CongTyID = @CongTyID;
+    END
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMLoaiTaiLieu_Delete
+    @LoaiTaiLieuID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM dbo.TaiLieu WHERE LoaiTaiLieuID = @LoaiTaiLieuID)
+    BEGIN
+        RAISERROR(N'Không thể xóa vì Loại tài liệu này đang được sử dụng bởi các Tài liệu trong hệ thống!', 16, 1);
+        RETURN;
+    END
+
+    DELETE FROM dbo.DMLoaiTaiLieu WHERE LoaiTaiLieuID = @LoaiTaiLieuID;
+END;
+GO
+*/
+/*
+Nguồn tri thức
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMNguonTriThuc_GetList
+    @CongTyID BIGINT,
+    @Keyword NVARCHAR(255) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT NguonTriThucID, CongTyID, MaNguon, TenNguon, DoUuTien
+    FROM dbo.DMNguonTriThuc WITH (NOLOCK)
+    WHERE CongTyID = @CongTyID
+      AND (@Keyword IS NULL OR @Keyword = '' OR MaNguon LIKE '%' + @Keyword + '%' OR TenNguon LIKE '%' + @Keyword + '%')
+    ORDER BY DoUuTien DESC, NguonTriThucID DESC;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMNguonTriThuc_GetById
+    @NguonTriThucID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT NguonTriThucID, CongTyID, MaNguon, TenNguon, DoUuTien
+    FROM dbo.DMNguonTriThuc WITH (NOLOCK)
+    WHERE NguonTriThucID = @NguonTriThucID;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMNguonTriThuc_Save
+    @NguonTriThucID BIGINT = 0,
+    @CongTyID BIGINT,
+    @MaNguon VARCHAR(50),
+    @TenNguon NVARCHAR(255),
+    @DoUuTien INT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM dbo.DMNguonTriThuc WHERE CongTyID = @CongTyID AND MaNguon = @MaNguon AND NguonTriThucID <> @NguonTriThucID)
+    BEGIN
+        RAISERROR(N'Mã nguồn tri thức đã tồn tại trong công ty này!', 16, 1);
+        RETURN;
+    END
+
+    IF @NguonTriThucID = 0
+    BEGIN
+        INSERT INTO dbo.DMNguonTriThuc (CongTyID, MaNguon, TenNguon, DoUuTien)
+        VALUES (@CongTyID, @MaNguon, @TenNguon, @DoUuTien);
+    END
+    ELSE
+    BEGIN
+        UPDATE dbo.DMNguonTriThuc
+        SET MaNguon = @MaNguon,
+            TenNguon = @TenNguon,
+            DoUuTien = @DoUuTien
+        WHERE NguonTriThucID = @NguonTriThucID AND CongTyID = @CongTyID;
+    END
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMNguonTriThuc_Delete
+    @NguonTriThucID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM dbo.TriThuc WHERE NguonTriThucID = @NguonTriThucID)
+    BEGIN
+        RAISERROR(N'Không thể xóa vì Nguồn tri thức này đang được sử dụng bởi các Tri thức trong hệ thống!', 16, 1);
+        RETURN;
+    END
+
+    DELETE FROM dbo.DMNguonTriThuc WHERE NguonTriThucID = @NguonTriThucID;
+END;
+GO
+*/
+/*Quyền
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMQuyen_GetNhomQuyenOptions
+    @CongTyID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT NhomQuyenID, TenNhomQuyen
+    FROM dbo.DMNhomQuyen WITH (NOLOCK)
+    WHERE CongTyID = @CongTyID AND TrangThai = 1
+    ORDER BY ThuTu ASC, TenNhomQuyen ASC;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMQuyen_GetList
+    @CongTyID BIGINT,
+    @Keyword NVARCHAR(255) = NULL,
+    @NhomQuyenID BIGINT = NULL,
+    @TrangThai TINYINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 
+        q.QuyenID, q.CongTyID, q.NhomQuyenID, nq.TenNhomQuyen,
+        q.MaQuyen, q.TenQuyen, q.HanhDong, q.DoiTuong, q.ThuTu, q.TrangThai,
+        CONVERT(VARCHAR(10), q.NgayTao, 103) AS NgayTaoText
+    FROM dbo.DMQuyen q
+    LEFT JOIN dbo.DMNhomQuyen nq ON nq.NhomQuyenID = q.NhomQuyenID
+    WHERE q.CongTyID = @CongTyID
+      AND (@Keyword IS NULL OR @Keyword = '' OR q.MaQuyen LIKE '%' + @Keyword + '%' OR q.TenQuyen LIKE '%' + @Keyword + '%')
+      AND (@NhomQuyenID IS NULL OR q.NhomQuyenID = @NhomQuyenID)
+      AND (@TrangThai IS NULL OR q.TrangThai = @TrangThai)
+    ORDER BY q.ThuTu ASC, q.QuyenID DESC;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMQuyen_GetById
+    @QuyenID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT QuyenID, CongTyID, NhomQuyenID, MaQuyen, TenQuyen, HanhDong, DoiTuong, ThuTu, TrangThai
+    FROM dbo.DMQuyen WITH (NOLOCK)
+    WHERE QuyenID = @QuyenID;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMQuyen_Save
+    @QuyenID BIGINT = 0,
+    @CongTyID BIGINT,
+    @NhomQuyenID BIGINT = NULL,
+    @MaQuyen VARCHAR(100),
+    @TenQuyen NVARCHAR(255),
+    @HanhDong VARCHAR(50),
+    @DoiTuong VARCHAR(100),
+    @ThuTu INT = 0,
+    @TrangThai TINYINT = 1
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM dbo.DMQuyen WHERE CongTyID = @CongTyID AND MaQuyen = @MaQuyen AND QuyenID <> @QuyenID)
+    BEGIN
+        RAISERROR(N'Mã quyền đã tồn tại trong công ty này!', 16, 1);
+        RETURN;
+    END
+
+    IF @QuyenID = 0
+    BEGIN
+        INSERT INTO dbo.DMQuyen (CongTyID, NhomQuyenID, MaQuyen, TenQuyen, HanhDong, DoiTuong, ThuTu, TrangThai, NgayTao)
+        VALUES (@CongTyID, @NhomQuyenID, @MaQuyen, @TenQuyen, @HanhDong, @DoiTuong, @ThuTu, @TrangThai, SYSUTCDATETIME());
+    END
+    ELSE
+    BEGIN
+        UPDATE dbo.DMQuyen
+        SET NhomQuyenID = @NhomQuyenID,
+            MaQuyen = @MaQuyen,
+            TenQuyen = @TenQuyen,
+            HanhDong = @HanhDong,
+            DoiTuong = @DoiTuong,
+            ThuTu = @ThuTu,
+            TrangThai = @TrangThai
+        WHERE QuyenID = @QuyenID AND CongTyID = @CongTyID;
+    END
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_long_DMQuyen_Delete
+    @QuyenID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM dbo.VaiTro_Quyen WHERE QuyenID = @QuyenID)
+    BEGIN
+        RAISERROR(N'Không thể xóa vì Quyền này đang được gán cho các Vai trò trong hệ thống!', 16, 1);
+        RETURN;
+    END
+
+    DELETE FROM dbo.DMQuyen WHERE QuyenID = @QuyenID;
+END;
+GO
+*/
