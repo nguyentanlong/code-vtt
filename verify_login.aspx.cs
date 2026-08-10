@@ -34,9 +34,9 @@ namespace VTT
         }
 
         [WebMethod(EnableSession = true)]
-        public static login.LoginResponse XacNhanOTP(string otp)
+        public static LoginResponse XacNhanOTP(string otp)
         {
-            login.LoginResponse res = new login.LoginResponse();
+            LoginResponse res = new LoginResponse();
             ConnectServer db = new ConnectServer();
 
             if (HttpContext.Current.Session["Pending_TaiKhoanID"] == null)
@@ -73,6 +73,8 @@ namespace VTT
                         HttpContext.Current.Session["CongTyID"] = HttpContext.Current.Session["Pending_CongTyID"];
                         HttpContext.Current.Session["PhongBanID"] = HttpContext.Current.Session["Pending_PhongBanID"];
                         HttpContext.Current.Session["ChucDanhID"] = HttpContext.Current.Session["Pending_ChucDanhID"];
+                        HttpContext.Current.Session["VaiTroID"] = HttpContext.Current.Session["Pending_VaiTroID"];
+HttpContext.Current.Session["MaVaiTro"] = HttpContext.Current.Session["Pending_MaVaiTro"];
 
                         // 2. Dọn dẹp toàn bộ Temp Session
                         HttpContext.Current.Session.Remove("Pending_TaiKhoanID");
@@ -83,6 +85,8 @@ namespace VTT
                         HttpContext.Current.Session.Remove("Pending_CongTyID");
                         HttpContext.Current.Session.Remove("Pending_PhongBanID");
                         HttpContext.Current.Session.Remove("Pending_ChucDanhID");
+                        HttpContext.Current.Session.Remove("Pending_VaiTroID");
+                        HttpContext.Current.Session.Remove("Pending_MaVaiTro");
 
                         res.Success = true;
                         res.Message = "Xác thực thành công!";
@@ -100,9 +104,9 @@ namespace VTT
         }
 
         [WebMethod(EnableSession = true)]
-        public static login.LoginResponse GuiLaiOTP()
+        public static LoginResponse GuiLaiOTP()
         {
-            login.LoginResponse res = new login.LoginResponse();
+            LoginResponse res = new LoginResponse();
             ConnectServer db = new ConnectServer();
 
             if (HttpContext.Current.Session["Pending_TaiKhoanID"] == null)

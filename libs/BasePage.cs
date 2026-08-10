@@ -4,6 +4,11 @@ using System.Web.UI;
 
 namespace VTT.libs
 {
+    public class AccessScope
+    {
+        public bool IsFullAccess { get; set; }  // true = Admin/IT, CRUD toàn hệ thống
+        public long PhongBanID { get; set; }    // phòng ban của tài khoản hiện tại
+    }
     public class BasePage : Page
     {
         protected override void OnInit(EventArgs e)
@@ -53,5 +58,30 @@ namespace VTT.libs
             }
             return 0;
         }
+// Long thêm
+private static readonly string[] FullAccessRoleCodes = { "ADMIN", "IT" };
+
+    protected static AccessScope GetCurrentAccessScope()
+    {
+        var maVaiTro = System.Web.HttpContext.Current.Session["MaVaiTro"] as string ?? "";
+        var phongBanObj = System.Web.HttpContext.Current.Session["PhongBanID"];
+
+        return new AccessScope
+        {
+            IsFullAccess = Array.Exists(FullAccessRoleCodes, code => code.Equals(maVaiTro, StringComparison.OrdinalIgnoreCase)),
+            PhongBanID = phongBanObj != null ? Convert.ToInt64(phongBanObj) : 0
+        };
+    }
+
+    /// <summary>
+    /// Kiểm tra tài khoản hiện tại có được SỬA/XÓA (CRUD) dữ liệu thuộc 1 Phòng ban cụ thể không.
+    /// Admin/IT luôn được phép. Người khác chỉ được phép nếu đúng Phòng ban của mình.
+    /// </summary>
+    protected static bool CanEdit(long targetPhongBanId)
+    {
+        var scope = GetCurrentAccessScope();
+        return scope.IsFullAccess || scope.PhongBanID == targetPhongBanId;
+    }
+
     }
 }

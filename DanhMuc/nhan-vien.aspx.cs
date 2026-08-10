@@ -103,7 +103,7 @@ namespace VTT.DanhMuc
         }
 
         // 3. Lưu thông tin Nhân viên (Thêm mới / Cập nhật)
-        [WebMethod]
+        /*[WebMethod]
         public static object SaveData(long nhanVienId, long congTyId, string maNhanVien, string hoTen, long? phongBanId, byte trangThai)
         {
             if (!IsAuthenticated())
@@ -168,6 +168,92 @@ namespace VTT.DanhMuc
         };
 
                 // Thực thi Stored Procedure xóa mềm
+                db.ExecuteDatasetStoredProcedure("sp_chinh_DMNhanVien_Delete", pars);
+
+                return new { success = true, message = "Xóa nhân viên thành công!" };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = "Lỗi khi xóa: " + ex.Message };
+            }
+        }*/
+        [WebMethod]
+        public static object SaveData(long nhanVienId, long congTyId, string maNhanVien, string hoTen, long? phongBanId, byte trangThai)
+        {
+            if (!IsAuthenticated())
+            {
+                return new { success = false, message = "Phiên làm việc đã hết hạn!" };
+            }
+
+            // --- KIỂM TRA PHÂN QUYỀN THEO PHÒNG BAN ---
+            long targetPhongBanId = (phongBanId.HasValue && phongBanId.Value > 0) ? phongBanId.Value : 0;
+            if (!CanEdit(targetPhongBanId))
+            {
+                return new { success = false, message = "Bạn không có quyền thêm/sửa Nhân viên thuộc Phòng ban này!" };
+            }
+            // --- HẾT KIỂM TRA ---
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                var pars = new Dictionary<string, object>
+                {
+                    { "@NhanVienID", nhanVienId },
+                    { "@CongTyID", congTyId },
+                    { "@MaNhanVien", maNhanVien.Trim() },
+                    { "@HoTen", hoTen.Trim() },
+                    { "@PhongBanID", (phongBanId.HasValue && phongBanId.Value > 0) ? (object)phongBanId.Value : DBNull.Value },
+                    { "@TrangThai", trangThai }
+                };
+
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMNhanVien_Save", pars);
+
+                if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+                {
+                    DataRow dr = ds.Tables[0].Rows[0];
+                    int responseCode = dr.Table.Columns.Contains("ResponseCode") ? Convert.ToInt32(dr["ResponseCode"]) : 1;
+                    string responseMsg = dr.Table.Columns.Contains("ResponseMessage") ? dr["ResponseMessage"].ToString() : "Lưu thành công!";
+                    return new { success = (responseCode == 1), message = responseMsg };
+                }
+
+                return new { success = true, message = nhanVienId == 0 ? "Thêm nhân viên thành công!" : "Cập nhật nhân viên thành công!" };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi DMNhanVien SaveData: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod]
+        public static object DeleteData(long nhanVienId)
+        {
+            if (!IsAuthenticated())
+            {
+                return new { success = false, message = "Phiên làm việc đã hết hạn!" };
+            }
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+
+                // --- KIỂM TRA PHÂN QUYỀN THEO PHÒNG BAN ---
+                var checkPars = new Dictionary<string, object> { { "@NhanVienID", nhanVienId } };
+                DataSet dsCheck = db.ExecuteDatasetStoredProcedure("sp_long_DMNhanVien_GetPhongBanID", checkPars);
+
+                long targetPhongBanId = 0;
+                if (dsCheck.Tables.Count > 0 && dsCheck.Tables[0].Rows.Count > 0 && dsCheck.Tables[0].Rows[0]["PhongBanID"] != DBNull.Value)
+                {
+                    targetPhongBanId = Convert.ToInt64(dsCheck.Tables[0].Rows[0]["PhongBanID"]);
+                }
+
+                if (!CanEdit(targetPhongBanId))
+                {
+                    return new { success = false, message = "Bạn không có quyền xóa Nhân viên thuộc Phòng ban này!" };
+                }
+                // --- HẾT KIỂM TRA ---
+
+                var pars = new Dictionary<string, object> { { "@NhanVienID", nhanVienId } };
                 db.ExecuteDatasetStoredProcedure("sp_chinh_DMNhanVien_Delete", pars);
 
                 return new { success = true, message = "Xóa nhân viên thành công!" };

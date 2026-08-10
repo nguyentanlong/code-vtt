@@ -63,7 +63,7 @@ namespace VTT.DanhMuc
             }
         }
 
-        [WebMethod]
+        /*[WebMethod]
         public static object SaveData(long boPhanId, long phongBanId, string maBoPhan, string tenBoPhan, long? truongBoPhanId, int thuTu, byte trangThai)
         {
             if (!IsAuthenticated())
@@ -102,6 +102,95 @@ namespace VTT.DanhMuc
             catch (Exception ex)
             {
                 log.Error("Lỗi DMBoPhan SaveData: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }*/
+
+        [WebMethod]
+        public static object SaveData(long boPhanId, long phongBanId, string maBoPhan, string tenBoPhan, long? truongBoPhanId, int thuTu, byte trangThai)
+        {
+            if (!IsAuthenticated())
+            {
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+            }
+
+            // --- KIỂM TRA PHÂN QUYỀN THEO PHÒNG BAN ---
+            if (!CanEdit(phongBanId))
+            {
+                return new { success = false, message = "Bạn không có quyền thêm/sửa Bộ phận thuộc Phòng ban này!" };
+            }
+            // --- HẾT KIỂM TRA ---
+
+            log.Info($"DMBoPhan SaveData called: boPhanId={boPhanId}, phongBanId={phongBanId}, maBoPhan={maBoPhan}, tenBoPhan={tenBoPhan}");
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                var pars = new Dictionary<string, object>
+                {
+                    { "@BoPhanID", boPhanId },
+                    { "@PhongBanID", phongBanId },
+                    { "@MaBoPhan", maBoPhan.Trim() },
+                    { "@TenBoPhan", tenBoPhan.Trim() },
+                    { "@TruongBoPhanID", (truongBoPhanId.HasValue && truongBoPhanId.Value > 0) ? (object)truongBoPhanId.Value : DBNull.Value },
+                    { "@ThuTu", thuTu },
+                    { "@TrangThai", trangThai }
+                };
+
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMBoPhan_Save", pars);
+
+                if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+                {
+                    DataRow dr = ds.Tables[0].Rows[0];
+                    int responseCode = Convert.ToInt32(dr["ResponseCode"]);
+                    string responseMsg = dr["ResponseMessage"].ToString();
+                    return new { success = (responseCode == 1), message = responseMsg };
+                }
+
+                return new { success = false, message = "Lưu thất bại, không nhận được phản hồi từ cơ sở dữ liệu!" };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi DMBoPhan SaveData: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+//hàm mới
+        [WebMethod]
+        public static object DeleteData(long boPhanId)
+        {
+            if (!IsAuthenticated())
+            {
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+            }
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+
+                // --- KIỂM TRA PHÂN QUYỀN THEO PHÒNG BAN ---
+                var checkPars = new Dictionary<string, object> { { "@BoPhanID", boPhanId } };
+                DataSet dsCheck = db.ExecuteDatasetStoredProcedure("sp_long_DMBoPhan_GetPhongBanID", checkPars);
+
+                long targetPhongBanId = 0;
+                if (dsCheck.Tables.Count > 0 && dsCheck.Tables[0].Rows.Count > 0 && dsCheck.Tables[0].Rows[0]["PhongBanID"] != DBNull.Value)
+                {
+                    targetPhongBanId = Convert.ToInt64(dsCheck.Tables[0].Rows[0]["PhongBanID"]);
+                }
+
+                if (!CanEdit(targetPhongBanId))
+                {
+                    return new { success = false, message = "Bạn không có quyền xóa Bộ phận thuộc Phòng ban này!" };
+                }
+                // --- HẾT KIỂM TRA ---
+
+                var pars = new Dictionary<string, object> { { "@BoPhanID", boPhanId } };
+                db.ExecuteDatasetStoredProcedure("sp_long_DMBoPhan_Delete", pars);
+
+                return new { success = true, message = "Xóa bộ phận thành công!" };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi DMBoPhan DeleteData: " + ex.Message, ex);
                 return new { success = false, message = ex.Message };
             }
         }

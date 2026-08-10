@@ -1,6 +1,6 @@
 using System;
 
-namespace VTT.libs
+namespace VTT
 {
     public class LoginResponse
     {

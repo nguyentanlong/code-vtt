@@ -22,12 +22,12 @@ namespace VTT
             }
         }
 
-        public class LoginResponse
+        /*public class LoginResponse
         {
             public bool Success { get; set; }
             public string Message { get; set; }
             public string RedirectUrl { get; set; }
-        }
+        }*/
 
         /// <summary>
         /// Hàm sinh ngẫu nhiên 6 chữ số OTP
@@ -182,6 +182,8 @@ namespace VTT
                     HttpContext.Current.Session["Pending_CongTyID"] = row.Table.Columns.Contains("CongTyID") ? row["CongTyID"] : null;
                     HttpContext.Current.Session["Pending_PhongBanID"] = row.Table.Columns.Contains("PhongBanID") ? row["PhongBanID"] : null;
                     HttpContext.Current.Session["Pending_ChucDanhID"] = row.Table.Columns.Contains("ChucDanhID") ? row["ChucDanhID"] : null;
+                    HttpContext.Current.Session["Pending_VaiTroID"] = row["VaiTroID"];
+HttpContext.Current.Session["Pending_MaVaiTro"] = row["MaVaiTro"] != DBNull.Value ? row["MaVaiTro"].ToString() : "";
 
                     res.Success = true;
                     res.Message = "Mã OTP đã được gửi về Email của bạn!";
