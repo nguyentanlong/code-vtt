@@ -68,7 +68,7 @@
 
                 <ul class="nav-list" id="navList">
                     <li class="nav-item active" data-icon="home" data-page="tong-quan"><a href="<%= ResolveUrl("~/child.aspx") %>">Tổng Quan</a></li>
-                    <li class="nav-item" data-icon="folder" data-page="du-an"><a href="<%= ResolveUrl("~/DanhMuc/cong-ty.aspx") %>">Danh mục Công ty</a></li>
+                    <li class="nav-item" data-icon="folder" data-page="danh-muc-cong-ty"><a href="<%= ResolveUrl("~/DanhMuc/cong-ty.aspx") %>">Danh mục Công ty</a></li>
                     <li class="nav-item" data-icon="truck" data-page="phong-ban"><a href="<%= ResolveUrl("~/DanhMuc/phong-ban.aspx") %>">Danh mục Phòng ban</a></li>
                     <li class="nav-item" data-icon="pencil" data-page="bo-phan"><a href="<%= ResolveUrl("~/DanhMuc/bo-phan.aspx") %>">Danh mục Bộ phận</a></li>
                     <li class="nav-item" data-icon="users" data-page="nhan-vien"><a href="<%= ResolveUrl("~/DanhMuc/nhan-vien.aspx") %>">Danh mục Nhân viên</a></li>
@@ -84,6 +84,8 @@
                     <li class="nav-item" data-icon="account" data-page="tai-khoan"><a href="<%= ResolveUrl("~/DanhMuc/tai-khoan.aspx") %>">Tài khoản</a></li>
                     <li class="nav-item" data-icon="building" data-page="loai-cong-trinh"><a href="<%= ResolveUrl("~/DanhMuc/loai-cong-trinh.aspx") %>">Loại công trình</a></li>
                     <li class="nav-item" data-icon="role" data-page="vai-tro"><a href="<%= ResolveUrl("~/DanhMuc/vai-tro.aspx") %>">Vai trò</a></li>
+                    <li class="nav-item" data-icon="project" data-page="du-an"><a href="<%= ResolveUrl("~/DanhMuc/du-an.aspx") %>">Dự án</a></li>
+                    <li class="nav-item" data-icon="timeLimit" data-page="giai-doan"><a href="<%= ResolveUrl("~/DanhMuc/giai-doan.aspx") %>">Giai đoạn</a></li>
                 </ul>
             </aside>
 

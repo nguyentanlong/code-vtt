@@ -39,7 +39,12 @@ const icons = {
   building: '<path d="M3 21h18M5 21V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v18M9 6h2M9 10h2M9 14h2M14 6h2M14 10h2M14 14h2"/>',
 
   // 9. Vai trò (Role): Vương miện hoặc mũ phân cấp vai trò quản trị
-  role: '<path d="M2 4l3 12h14l3-12-5 4-5-6-5 6Z"/><path d="M3 20h18"/>'
+  role: '<path d="M2 4l3 12h14l3-12-5 4-5-6-5 6Z"/><path d="M3 20h18"/>',
+  timeLimit: '<circle cx="12" cy="12" r="9"/><path d="M12 6v6l3 2M16 18l4-4-4-4"/>',
+  // 10. Dự án (Project): Bảng tiến độ, kế hoạch và các hạng mục công việc đang triển khai
+  project: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h10M7 12h5M7 16h7M16 14l1.5 1.5L21 12"/>',
+
+
 };
 document.querySelectorAll('.nav-item').forEach(item => {
   const key = item.dataset.icon;
