@@ -86,6 +86,7 @@
                     <li class="nav-item" data-icon="role" data-page="vai-tro"><a href="<%= ResolveUrl("~/DanhMuc/vai-tro.aspx") %>">Vai trò</a></li>
                     <li class="nav-item" data-icon="project" data-page="du-an"><a href="<%= ResolveUrl("~/DanhMuc/du-an.aspx") %>">Dự án</a></li>
                     <li class="nav-item" data-icon="timeLimit" data-page="giai-doan"><a href="<%= ResolveUrl("~/DanhMuc/giai-doan.aspx") %>">Giai đoạn</a></li>
+                    <li class="nav-item" data-icon="homeProcess" data-page="quy-trinh"><a href="<%= ResolveUrl("~/DanhMuc/quy-trinh.aspx") %>">Quy trình</a></li>
                 </ul>
             </aside>
 

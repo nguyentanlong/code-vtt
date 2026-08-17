@@ -43,8 +43,8 @@ const icons = {
   timeLimit: '<circle cx="12" cy="12" r="9"/><path d="M12 6v6l3 2M16 18l4-4-4-4"/>',
   // 10. Dự án (Project): Bảng tiến độ, kế hoạch và các hạng mục công việc đang triển khai
   project: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h10M7 12h5M7 16h7M16 14l1.5 1.5L21 12"/>',
-
-
+  // Quy trình home: Mái nhà kết hợp với các mũi tên quy trình xoay vòng bên dưới
+  homeProcess: '<path d="M3 9 12 2l9 7"/><path d="M5 9v4M19 9v4"/><path d="M7 14a5 5 0 0 1 7-4.5"/><path d="M12 20a5 5 0 0 1-5-5"/><path d="M12 10.5V13h2.5"/><path d="M12 21.5V19h-2.5"/>',
 };
 document.querySelectorAll('.nav-item').forEach(item => {
   const key = item.dataset.icon;
