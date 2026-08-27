@@ -1,283 +1,239 @@
-﻿/**
- * Quản lý Danh mục Nhân Viên (nhan-vien.js)
- * Liên kết liên thông với DMPhongBan & DMBoPhan
- */
-var CURRENT_CONG_TY_ID = 1;
+﻿var canThemPermission = false;
+var chiNhanhOptions = [];
+var chucVuOptions = [];
 
-$(document).ready(function () {
-    // 1. Load danh sách Phòng ban vào dropdown & Load bảng Nhân viên
-    loadDropdownPhongBan();
-    loadData();
-
-    // 2. Lọc danh sách khi bấm Enter ở ô tìm kiếm
-    $('#txtSearch').on('keyup', function (e) {
-        if (e.keyCode === 13) {
-            loadData();
-        }
-    });
-
-    // 3. Sự kiện click nút Search
-    $('#btnSearch').on('click', function (e) {
-        e.preventDefault();
+document.addEventListener("DOMContentLoaded", function () {
+    Promise.all([loadPermission(), loadChiNhanhOptions(), loadChucVuOptions()]).then(function () {
         loadData();
-    });
-
-    // 4. Khi đổi Phòng Ban trên Modal -> Tự động load Bộ Phận thuộc Phòng Ban đó
-    $('#ddlModalPhongBan').on('change', function () {
-        var phongBanId = parseInt($(this).val()) || 0;
-        loadDropdownBoPhanByPhongBan(phongBanId, null);
     });
 });
 
-// ==========================================
-// LOAD DỮ LIỆU BẢNG VÀ DROPDOWN
-// ==========================================
-function loadData() {
-    var keyword = $('#txtSearch').val() || '';
-
-    $.ajax({
-        type: "POST",
-        url: window.location.pathname + "/GetList",
-        data: JSON.stringify({
-            congTyId: CURRENT_CONG_TY_ID,
-            keyword: keyword,
-            trangThai: 1 // 1: Đang làm việc
-        }),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (response) {
-            var res = response.d;
-            if (res.success) {
-                renderTableNhanVien(res.data);
+function callWebMethod(methodName, dataObj, successCallback) {
+    return fetch("nhan-vien.aspx/" + methodName, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify(dataObj || {})
+    })
+        .then(response => response.json())
+        .then(res => {
+            var result = res.d;
+            if (result && result.success) {
+                successCallback(result);
             } else {
-                alert(res.message || "Lỗi tải dữ liệu nhân viên!");
-            }
-        },
-        error: function (xhr, status, error) {
-            console.error("Lỗi GetList NhanVien:", xhr.responseText);
-        }
-    });
-}
-
-// Tải danh sách Phòng ban
-function loadDropdownPhongBan() {
-    $.ajax({
-        type: "POST",
-        url: "bo-phan.aspx/GetListPhongBan", // Tái sử dụng WebMethod Phòng ban
-        data: JSON.stringify({ congTyId: CURRENT_CONG_TY_ID }),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (response) {
-            var res = response.d;
-            if (res.success) {
-                var html = '<option value="">-- Chọn Phòng Ban --</option>';
-                if (res.data && res.data.length > 0) {
-                    $.each(res.data, function (i, item) {
-                        html += '<option value="' + item.PhongBanID + '">' + item.TenPhongBan + '</option>';
-                    });
+                var errorMsg = result ? result.message : "Thao tác thất bại!";
+                alert("Lỗi: " + errorMsg);
+                if (errorMsg && (errorMsg.includes("đăng nhập") || errorMsg.includes("hết hạn"))) {
+                    var currentUrl = encodeURIComponent(window.location.href);
+                    window.location.href = "../login.aspx?returnUrl=" + currentUrl;
                 }
-                $('#ddlModalPhongBan').html(html);
             }
-        }
+        })
+        .catch(err => {
+            console.error("AJAX Error:", err);
+            alert("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!");
+        });
+}
+
+function loadPermission() {
+    return callWebMethod("GetPermission", {}, function (res) {
+        canThemPermission = res.data.canThem;
+        document.getElementById("btnAddNew").style.display = canThemPermission ? "inline-flex" : "none";
     });
 }
 
-// Tải danh sách Bộ Phận theo Phòng Ban đã chọn (Cascading)
-function loadDropdownBoPhanByPhongBan(phongBanId, selectedBoPhanId) {
-    var $ddlBoPhan = $('#ddlModalBoPhan');
+function loadChiNhanhOptions() {
+    return callWebMethod("GetChiNhanhOptions", {}, function (res) {
+        chiNhanhOptions = res.data || [];
 
-    if (!phongBanId || phongBanId <= 0) {
-        $ddlBoPhan.html('<option value="">-- Chọn Bộ Phận --</option>');
-        return;
-    }
+        var ddlFilter = document.getElementById("ddlSearchChiNhanh");
+        ddlFilter.innerHTML = '<option value="">-- Tất cả chi nhánh --</option>';
+        var ddlForm = document.getElementById("ddlFormChiNhanh");
+        ddlForm.innerHTML = '<option value="">-- Trực thuộc Tổng công ty --</option>';
 
-    $.ajax({
-        type: "POST",
-        url: window.location.pathname + "/GetBoPhanByPhongBan",
-        data: JSON.stringify({ phongBanId: phongBanId }),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (response) {
-            var res = response.d;
-            var html = '<option value="">-- Chọn Bộ Phận --</option>';
-            if (res.success && res.data && res.data.length > 0) {
-                $.each(res.data, function (i, item) {
-                    html += '<option value="' + item.BoPhanID + '">' + item.TenBoPhan + '</option>';
-                });
-            }
-            $ddlBoPhan.html(html);
-
-            if (selectedBoPhanId) {
-                $ddlBoPhan.val(selectedBoPhanId);
-            }
-        }
+        chiNhanhOptions.forEach(function (cn) {
+            var opt = `<option value="${cn.ChiNhanhID}">${escapeHtml(cn.TenChiNhanh)}</option>`;
+            ddlFilter.innerHTML += opt;
+            ddlForm.innerHTML += opt;
+        });
     });
 }
 
-// Render dữ liệu bảng Nhân viên
-function renderTableNhanVien(list) {
-    var html = '';
-    if (list && list.length > 0) {
-        $.each(list, function (index, item) {
-            var trangThaiBadge = item.TrangThai === 1
-                ? '<span class="badge bg-success">Đang làm việc</span>'
-                : '<span class="badge bg-secondary">Đã nghỉ việc</span>';
+function loadChucVuOptions() {
+    return callWebMethod("GetChucVuOptions", {}, function (res) {
+        chucVuOptions = res.data || [];
+        var ddl = document.getElementById("ddlFormChucVu");
+        ddl.innerHTML = '<option value="">-- Không chọn --</option>';
+        chucVuOptions.forEach(function (cv) {
+            ddl.innerHTML += `<option value="${cv.ChucVuID}">${escapeHtml(cv.TenChucVu)}</option>`;
+        });
+    });
+}
 
-            html += '<tr>';
-            html += '<td class="text-center">' + (index + 1) + '</td>';
-            html += '<td><b>' + (item.MaNhanVien || '') + '</b></td>';
-            html += '<td>' + (item.HoTen || '') + '</td>';
-            html += '<td>' + (item.TenPhongBan || '') + '</td>';
-            html += '<td>' + (item.TenBoPhan || '<i class="text-muted">Chưa phân bộ phận</i>') + '</td>';
-            html += '<td class="text-center">' + trangThaiBadge + '</td>';
-            html += '<td class="text-center">';
+function loadPhongBanOptions(chiNhanhId, targetSelectId, selectedId) {
+    return callWebMethod("GetPhongBanOptions", { chiNhanhId: chiNhanhId ? parseInt(chiNhanhId) : null }, function (res) {
+        var ddl = document.getElementById(targetSelectId);
+        ddl.innerHTML = '<option value="">-- Chọn phòng ban --</option>';
+        (res.data || []).forEach(function (pb) {
+            var selected = (selectedId && pb.PhongBanID == selectedId) ? "selected" : "";
+            ddl.innerHTML += `<option value="${pb.PhongBanID}" ${selected}>${escapeHtml(pb.TenPhongBan)}</option>`;
+        });
+    });
+}
 
-            // NÚT SỬA (Thêm type="button" và return false để KHÔNG BỊ REFRESH/F5 TRANG)
-            html += '  <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit" '
-                + ' data-id="' + item.NhanVienID + '"'
-                + ' data-ma="' + (item.MaNhanVien || '') + '"'
-                + ' data-ten="' + (item.HoTen || '') + '"'
-                + ' data-phongban="' + (item.PhongBanID || '') + '"'
-                + ' data-bophan="' + (item.BoPhanID || '') + '"'
-                + ' data-trangthai="' + item.TrangThai + '" onclick="onClickEdit(this); return false;">';
-            html += '     <i class="fa fa-edit"></i> Sửa';
-            html += '  </button>';
+function onFilterChiNhanhChange() {
+    var chiNhanhId = document.getElementById("ddlSearchChiNhanh").value;
+    loadPhongBanOptions(chiNhanhId, "ddlSearchPhongBan", null).then(function () {
+        loadData();
+    });
+}
 
-            // NÚT XÓA (Thêm type="button" và return false)
-            html += '  <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteNhanVien(' + item.NhanVienID + ', \'' + (item.MaNhanVien || '') + '\'); return false;">';
-            html += '     <i class="fa fa-trash"></i> Xóa';
-            html += '  </button>';
+function onFormChiNhanhChange() {
+    var chiNhanhId = document.getElementById("ddlFormChiNhanh").value;
+    loadPhongBanOptions(chiNhanhId, "ddlFormPhongBan", null);
+}
 
-            html += '</td>';
-            html += '</tr>';
+function loadData() {
+    var keyword = document.getElementById("txtSearchKeyword").value;
+    var chiNhanhId = document.getElementById("ddlSearchChiNhanh").value;
+    var phongBanId = document.getElementById("ddlSearchPhongBan").value;
+    var trangThai = document.getElementById("ddlSearchTrangThai").value;
+
+    callWebMethod("GetList", {
+        keyword: keyword,
+        chiNhanhId: chiNhanhId ? parseInt(chiNhanhId) : null,
+        phongBanId: phongBanId ? parseInt(phongBanId) : null,
+        trangThai: trangThai
+    }, function (res) {
+        var tbody = document.getElementById("tbodyNhanVien");
+        tbody.innerHTML = "";
+
+        if (!res.data || res.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#888;">Không tìm thấy dữ liệu nào</td></tr>';
+            return;
+        }
+
+        res.data.forEach(function (item, index) {
+            var badgeClass = item.TrangThai === 1 ? "badge-success" : "badge-danger";
+            var statusText = item.TrangThai === 1 ? "Đang hoạt động" : "Ngừng hoạt động";
+
+            var actionsHtml = "";
+            if (item.CanEditRow) {
+                actionsHtml += `
+                    <button type="button" class="btn-icon text-edit" onclick="openModal(${item.NhanVienID})" title="Chỉnh sửa">
+                        <i class="fa fa-edit"></i> Sửa
+                    </button>
+                `;
+            }
+            if (item.CanDeleteRow) {
+                actionsHtml += `
+                    <button type="button" class="btn-icon text-delete" onclick="deleteData(${item.NhanVienID})" title="Xóa">
+                        <i class="fa fa-trash"></i> Xóa
+                    </button>
+                `;
+            }
+            if (!actionsHtml) {
+                actionsHtml = '<span style="color:#94a3b8; font-size:12px;">Chỉ xem</span>';
+            }
+
+            var tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="text-align:center;">${index + 1}</td>
+                <td><strong>${escapeHtml(item.MaNhanVien)}</strong></td>
+                <td>${escapeHtml(item.HoTen)}</td>
+                <td>${escapeHtml(item.TenPhongBan || '')}</td>
+                <td>${escapeHtml(item.TenChiNhanh || '')}</td>
+                <td>${escapeHtml(item.TenChucVu || '')}</td>
+                <td><span class="badge ${badgeClass}">${statusText}</span></td>
+                <td style="text-align:center; white-space:nowrap;">${actionsHtml}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+function openModal(id) {
+    document.getElementById("hddNhanVienID").value = id;
+
+    if (id === 0) {
+        document.getElementById("modalTitle").innerText = "Thêm mới Nhân viên";
+        document.getElementById("txtMaNhanVien").value = "";
+        document.getElementById("txtMaNhanVien").readOnly = false;
+        document.getElementById("txtHoTen").value = "";
+        document.getElementById("txtEmail").value = "";
+        document.getElementById("txtSoDienThoai").value = "";
+        document.getElementById("ddlFormChiNhanh").value = "";
+        document.getElementById("ddlFormChucVu").value = "";
+        document.getElementById("ddlTrangThai").value = "1";
+        loadPhongBanOptions(null, "ddlFormPhongBan", null).then(function () {
+            document.getElementById("modalNhanVien").style.display = "flex";
         });
     } else {
-        html = '<tr><td colspan="7" class="text-center text-muted">Không có dữ liệu nhân viên</td></tr>';
+        document.getElementById("modalTitle").innerText = "Chỉnh sửa Nhân viên";
+        callWebMethod("GetById", { id: id }, function (res) {
+            var d = res.data;
+            document.getElementById("txtMaNhanVien").value = d.MaNhanVien;
+            document.getElementById("txtMaNhanVien").readOnly = true;
+            document.getElementById("txtHoTen").value = d.HoTen;
+            document.getElementById("txtEmail").value = d.Email || "";
+            document.getElementById("txtSoDienThoai").value = d.SoDienThoai || "";
+            document.getElementById("ddlFormChiNhanh").value = d.ChiNhanhID || "";
+            document.getElementById("ddlFormChucVu").value = d.ChucVuChinhThucID || "";
+            document.getElementById("ddlTrangThai").value = d.TrangThai;
+            loadPhongBanOptions(d.ChiNhanhID, "ddlFormPhongBan", d.PhongBanChinhThucID).then(function () {
+                document.getElementById("modalNhanVien").style.display = "flex";
+            });
+        });
     }
-    $('#tbodyNhanVien').html(html);
 }
 
-// Hàm sự kiện khi click nút Sửa (Bắt trực tiếp từ thuộc tính data-*)
-function onClickEdit(btn) {
-    var $btn = $(btn);
-    var id = $btn.data('id');
-    var ma = $btn.data('ma');
-    var ten = $btn.data('ten');
-    var phongBanId = parseInt($btn.data('phongban')) || null;
-    var boPhanId = parseInt($btn.data('bophan')) || null;
-    var trangThai = parseInt($btn.data('trangthai')) || 1;
-
-    openModalEdit(id, ma, ten, phongBanId, boPhanId, trangThai);
+function closeModal() {
+    document.getElementById("modalNhanVien").style.display = "none";
 }
 
-// Hàm Xóa Nhân Viên
-function deleteNhanVien(nhanVienId, maNhanVien) {
-    if (!confirm('Bạn có chắc chắn muốn xóa nhân viên [' + maNhanVien + '] không?')) {
-        return;
-    }
+function saveData() {
+    var id = parseInt(document.getElementById("hddNhanVienID").value);
+    var maNhanVien = document.getElementById("txtMaNhanVien").value.trim();
+    var hoTen = document.getElementById("txtHoTen").value.trim();
+    var phongBanId = document.getElementById("ddlFormPhongBan").value;
+    var chucVuId = document.getElementById("ddlFormChucVu").value;
 
-    $.ajax({
-        type: "POST",
-        url: window.location.pathname + "/DeleteData",
-        data: JSON.stringify({ nhanVienId: nhanVienId }),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (response) {
-            var res = response.d;
-            if (res.success) {
-                alert(res.message || "Xóa nhân viên thành công!");
-                loadData();
-            } else {
-                alert("Lỗi: " + res.message);
-            }
-        },
-        error: function (xhr) {
-            console.error("Lỗi DeleteData:", xhr.responseText);
-            alert("Lỗi hệ thống khi thực hiện xóa dữ liệu!");
-        }
-    });
-}
-
-// ==========================================
-// MODAL & XỬ LÝ LƯU DỮ LIỆU
-// ==========================================
-function openModalAdd() {
-    clearForm();
-    $('#modalTitle').text('Thêm Mới Nhân Viên');
-    $('#btnSave').attr('onclick', 'saveNhanVien(0); return false;');
-    $('#modalNhanVien').modal('show');
-}
-
-function openModalEdit(nhanVienId, maNhanVien, hoTen, phongBanId, boPhanId, trangThai) {
-    clearForm();
-    $('#modalTitle').text('Cập Nhật Nhân Viên');
-
-    $('#txtMaNhanVien').val(maNhanVien);
-    $('#txtHoTen').val(hoTen);
-    $('#ddlModalPhongBan').val(phongBanId ? phongBanId : "");
-    $('#chkTrangThai').prop('checked', trangThai === 1);
-
-    if (phongBanId) {
-        loadDropdownBoPhanByPhongBan(phongBanId, boPhanId);
-    }
-
-    $('#btnSave').attr('onclick', 'saveNhanVien(' + nhanVienId + '); return false;');
-    $('#modalNhanVien').modal('show');
-}
-
-function clearForm() {
-    $('#txtMaNhanVien').val('');
-    $('#txtHoTen').val('');
-    $('#ddlModalPhongBan').val('');
-    $('#ddlModalBoPhan').html('<option value="">-- Chọn Bộ Phận --</option>');
-    $('#chkTrangThai').prop('checked', true);
-}
-
-function saveNhanVien(nhanVienId) {
-    var maNhanVien = $('#txtMaNhanVien').val().trim();
-    var hoTen = $('#txtHoTen').val().trim();
-    var phongBanId = parseInt($('#ddlModalPhongBan').val()) || null;
-    var trangThai = $('#chkTrangThai').is(':checked') ? 1 : 0;
-
-    if (!maNhanVien) {
-        alert('Vui lòng nhập Mã Nhân Viên!');
-        $('#txtMaNhanVien').focus();
-        return;
-    }
-    if (!hoTen) {
-        alert('Vui lòng nhập Họ Tên Nhân Viên!');
-        $('#txtHoTen').focus();
-        return;
-    }
+    if (!maNhanVien) { alert("Vui lòng nhập Mã nhân viên!"); document.getElementById("txtMaNhanVien").focus(); return; }
+    if (!hoTen) { alert("Vui lòng nhập Họ tên!"); document.getElementById("txtHoTen").focus(); return; }
+    if (!phongBanId) { alert("Vui lòng chọn Phòng ban!"); return; }
 
     var payload = {
-        nhanVienId: nhanVienId,
-        congTyId: CURRENT_CONG_TY_ID,
-        maNhanVien: maNhanVien,
+        nhanVienId: id,
         hoTen: hoTen,
-        phongBanId: phongBanId,
-        trangThai: trangThai
+        maNhanVien: maNhanVien,
+        email: document.getElementById("txtEmail").value.trim(),
+        soDienThoai: document.getElementById("txtSoDienThoai").value.trim(),
+        phongBanChinhThucId: parseInt(phongBanId),
+        chucVuChinhThucId: chucVuId ? parseInt(chucVuId) : null,
+        trangThai: parseInt(document.getElementById("ddlTrangThai").value)
     };
 
-    $.ajax({
-        type: "POST",
-        url: window.location.pathname + "/SaveData",
-        data: JSON.stringify(payload),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (response) {
-            var res = response.d;
-            if (res.success) {
-                alert(res.message);
-                $('#modalNhanVien').modal('hide');
-                loadData();
-            } else {
-                alert("Lỗi: " + res.message);
-            }
-        },
-        error: function (xhr, status, error) {
-            console.error("Lỗi SaveData Nhân viên:", xhr.responseText);
-            alert("Có lỗi xảy ra trong quá trình lưu dữ liệu!");
-        }
+    callWebMethod("SaveData", payload, function (res) {
+        alert(res.message);
+        closeModal();
+        loadData();
     });
+}
+
+function deleteData(id) {
+    if (confirm("Bạn có chắc chắn muốn xóa Nhân viên này khỏi hệ thống?")) {
+        callWebMethod("DeleteData", { id: id }, function (res) {
+            alert(res.message);
+            loadData();
+        });
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }

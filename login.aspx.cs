@@ -4,43 +4,26 @@ using System.Data;
 using System.Net.Mail;
 using System.Web;
 using System.Web.Services;
-using log4net;
 using VTT.libs;
 
 namespace VTT
 {
     public partial class login : System.Web.UI.Page
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof(login));
-
         protected void Page_Load(object sender, EventArgs e)
         {
             if (!IsPostBack && Session["TaiKhoanID"] != null)
             {
-                // Nếu đã đăng nhập thành công thì vào thẳng index.aspx
                 Response.Redirect("~/index.aspx");
             }
         }
 
-        /*public class LoginResponse
-        {
-            public bool Success { get; set; }
-            public string Message { get; set; }
-            public string RedirectUrl { get; set; }
-        }*/
-
-        /// <summary>
-        /// Hàm sinh ngẫu nhiên 6 chữ số OTP
-        /// </summary>
         private static string GenerateOTP()
         {
             Random generator = new Random();
             return generator.Next(0, 1000000).ToString("D6");
         }
 
-        /// <summary>
-        /// Hàm gửi Email OTP tự động đọc cấu hình SMTP từ web.config
-        /// </summary>
         private static bool SendOTPEmail(string toEmail, string hoTen, string otpCode)
         {
             try
@@ -55,27 +38,24 @@ namespace VTT
                     mail.Subject = subject;
                     mail.Body = body;
                     mail.IsBodyHtml = true;
-
                     smtp.Send(mail);
                 }
                 return true;
             }
             catch (Exception ex)
             {
-                log.Error("Lỗi gửi mail OTP: ", ex);
+                System.Diagnostics.Trace.WriteLine("Lỗi gửi mail OTP: " + ex.ToString());
                 return false;
             }
         }
 
-        /// <summary>
-        /// Lấy IP Client (Xử lý qua Cloudflare / Proxy)
-        /// </summary>
         private static string GetClientIP()
         {
-            var ctx = HttpContext.Current;
-            string ip = ctx.Request.ServerVariables["HTTP_CF_CONNECTING_IP"];
-            if (string.IsNullOrEmpty(ip)) ip = ctx.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
-            if (string.IsNullOrEmpty(ip)) ip = ctx.Request.UserHostAddress;
+            string ip = HttpContext.Current.Request.ServerVariables["HTTP_CF_CONNECTING_IP"];
+            if (string.IsNullOrEmpty(ip))
+                ip = HttpContext.Current.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
+            if (string.IsNullOrEmpty(ip))
+                ip = HttpContext.Current.Request.UserHostAddress;
             return ip ?? "127.0.0.1";
         }
 
@@ -91,11 +71,11 @@ namespace VTT
 
                 Dictionary<string, object> parameters = new Dictionary<string, object>
                 {
-                    { "@Username", username },
+                    { "@TenDangNhap", username },
                     { "@IPAddress", clientIP }
                 };
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("dbo.sp_chinh_TaiKhoan_DangNhap", parameters);
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_DangNhap", parameters);
 
                 if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
                 {
@@ -103,7 +83,6 @@ namespace VTT
                     bool isSuccess = Convert.ToInt32(row["Success"]) == 1;
                     string message = row["Message"].ToString();
 
-                    // Nếu IP đang bị khóa 5 phút
                     if (!isSuccess)
                     {
                         res.Success = false;
@@ -111,9 +90,8 @@ namespace VTT
                         return res;
                     }
 
-                    // Kiểm tra trạng thái khóa tài khoản
-                    bool isLocked = row.Table.Columns.Contains("IsLocked") && row["IsLocked"] != DBNull.Value && Convert.ToBoolean(row["IsLocked"]);
-                    byte trangThai = row.Table.Columns.Contains("TrangThaiTK") && row["TrangThaiTK"] != DBNull.Value ? Convert.ToByte(row["TrangThaiTK"]) : (byte)0;
+                    bool isLocked = row["IsLocked"] != DBNull.Value && Convert.ToBoolean(row["IsLocked"]);
+                    byte trangThai = row["TrangThaiTK"] != DBNull.Value ? Convert.ToByte(row["TrangThaiTK"]) : (byte)0;
 
                     if (isLocked || trangThai == 0)
                     {
@@ -122,27 +100,40 @@ namespace VTT
                         return res;
                     }
 
-                    // --- XÁC THỰC MẬT KHẨU PBKDF2 ---
-                    string dbPasswordHash = row.Table.Columns.Contains("PasswordHash") ? row["PasswordHash"].ToString() : string.Empty;
-                    // bool isPasswordValid = libs.VerifyPassword(password, dbPasswordHash);
+                    string dbPasswordHash = row["MatKhauHash"].ToString();
                     bool isPasswordValid = libs.libs.VerifyPassword(password, dbPasswordHash);
 
-                    object taiKhoanId = row.Table.Columns.Contains("TaiKhoanID") ? row["TaiKhoanID"] : null;
-                    object nhanVienId = row.Table.Columns.Contains("NhanVienID") && row["NhanVienID"] != DBNull.Value ? row["NhanVienID"] : null;
+                    object taiKhoanId = row["TaiKhoanID"];
+                    object nhanVienId = row["NhanVienID"];
 
                     if (!isPasswordValid)
                     {
-                        // Gọi Proc ghi log thất bại (Sai mật khẩu)
-                        Process.GhiNhatKyDangNhap(db, "LOGIN_FAILED", username, taiKhoanId, nhanVienId, clientIP, "Sai mật khẩu");
-
+                        // Ghi log đăng nhập thất bại để phục vụ đếm số lần sai (2 tầng khóa)
+                        var logPars = new Dictionary<string, object>
+                        {
+                            { "@TenDangNhap", username },
+                            { "@IPAddress", clientIP },
+                            { "@GhiChu", "Sai thông tin đăng nhập" }
+                        };
+                        db.ExecuteDatasetStoredProcedure("sp_v2_GhiLogDangNhapThatBai", logPars);
                         res.Success = false;
                         res.Message = "Tên đăng nhập hoặc mật khẩu không chính xác!";
                         return res;
+                    }else{
+                        var logPars = new Dictionary<string, object>
+                        {
+                            { "@TenDangNhap", username },
+                            { "@IPAddress", clientIP },
+                            { "@GhiChu", "Tài khoản không tồn tại" }
+                        };
+                        db.ExecuteDatasetStoredProcedure("sp_v2_GhiLogDangNhapThatBai", logPars);
+
+                        res.Success = false;
+                        res.Message = "Tai khoản chưa kich hoạt!!";
                     }
 
-                    // --- MẬT KHẨU ĐÚNG -> CHUYỂN BƯỚC XÁC THỰC OTP ---
-                    string email = row.Table.Columns.Contains("EmailCongTy") && row["EmailCongTy"] != DBNull.Value ? row["EmailCongTy"].ToString() : "";
-                    string hoTen = row.Table.Columns.Contains("HoTen") && row["HoTen"] != DBNull.Value ? row["HoTen"].ToString() : username;
+                    string email = row["Email"] != DBNull.Value ? row["Email"].ToString() : "";
+                    string hoTen = row["HoTen"] != DBNull.Value ? row["HoTen"].ToString() : username;
 
                     if (string.IsNullOrEmpty(email))
                     {
@@ -151,10 +142,8 @@ namespace VTT
                         return res;
                     }
 
-                    // 1. Sinh mã OTP 6 số
                     string otpCode = GenerateOTP();
 
-                    // 2. Lưu OTP vào Database
                     Dictionary<string, object> otpParams = new Dictionary<string, object>
                     {
                         { "@Action", "GENERATE" },
@@ -162,9 +151,8 @@ namespace VTT
                         { "@OTPCode", otpCode },
                         { "@IPAddress", clientIP }
                     };
-                    db.ExecuteDatasetStoredProcedure("dbo.sp_chinh_TaiKhoan_OTP", otpParams);
+                    db.ExecuteDatasetStoredProcedure("sp_chinh_TaiKhoan_OTP", otpParams);
 
-                    // 3. Gửi Mail OTP
                     bool sendMailOk = SendOTPEmail(email, hoTen, otpCode);
                     if (!sendMailOk)
                     {
@@ -173,34 +161,30 @@ namespace VTT
                         return res;
                     }
 
-                    // 4. Lưu Session TẠM THỜI (Lưu thông tin User để cấp Session chính thức bên verify_login)
+                    // Lưu Session TẠM THỜI (theo đúng tên cột của schema v2)
                     HttpContext.Current.Session["Pending_TaiKhoanID"] = taiKhoanId;
-                    HttpContext.Current.Session["Pending_Username"] = row.Table.Columns.Contains("Username") ? row["Username"] : username;
+                    HttpContext.Current.Session["Pending_TenDangNhap"] = row["TenDangNhap"];
                     HttpContext.Current.Session["Pending_NhanVienID"] = nhanVienId;
                     HttpContext.Current.Session["Pending_HoTen"] = hoTen;
                     HttpContext.Current.Session["Pending_Email"] = email;
-                    HttpContext.Current.Session["Pending_CongTyID"] = row.Table.Columns.Contains("CongTyID") ? row["CongTyID"] : null;
-                    HttpContext.Current.Session["Pending_PhongBanID"] = row.Table.Columns.Contains("PhongBanID") ? row["PhongBanID"] : null;
-                    HttpContext.Current.Session["Pending_ChucDanhID"] = row.Table.Columns.Contains("ChucDanhID") ? row["ChucDanhID"] : null;
-                    HttpContext.Current.Session["Pending_VaiTroID"] = row["VaiTroID"];
-HttpContext.Current.Session["Pending_MaVaiTro"] = row["MaVaiTro"] != DBNull.Value ? row["MaVaiTro"].ToString() : "";
+                    HttpContext.Current.Session["Pending_CongTyID"] = row["CongTyID"];
+                    HttpContext.Current.Session["Pending_PhongBanID"] = row["PhongBanChinhThucID"];
+                    HttpContext.Current.Session["Pending_ChiNhanhID"] = row["ChiNhanhID"];
+                    HttpContext.Current.Session["Pending_ChucVuID"] = row["ChucVuChinhThucID"];
 
                     res.Success = true;
                     res.Message = "Mã OTP đã được gửi về Email của bạn!";
-                    res.RedirectUrl = "verify_login.aspx"; // Chuyển sang trang nhập OTP
+                    res.RedirectUrl = "verify_login.aspx";
                 }
                 else
                 {
-                    // Gọi Proc ghi log thất bại (Không tồn tại Username)
-                    Process.GhiNhatKyDangNhap(db, "LOGIN_FAILED", username, null, null, clientIP, "Tài khoản không tồn tại");
-
                     res.Success = false;
                     res.Message = "Tên đăng nhập hoặc mật khẩu không chính xác!";
                 }
             }
             catch (Exception ex)
             {
-                log.Error("Lỗi trong XuLyDangNhap WebMethod: ", ex);
+                System.Diagnostics.Trace.WriteLine("Lỗi trong XuLyDangNhap WebMethod: " + ex.ToString());
                 res.Success = false;
                 res.Message = "Đã xảy ra lỗi hệ thống: " + ex.Message;
             }

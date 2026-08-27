@@ -119,12 +119,23 @@
                                     <path d="M10 21a2 2 0 0 0 4 0"></path>
                                 </svg>
                             </button>
-                            <div class="user-chip">
-                                <div class="avatar"><%= System.Web.HttpUtility.HtmlEncode(initials) %></div>
-                                <span class="name"><%= System.Web.HttpUtility.HtmlEncode(displayName) %></span>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="m6 9 6 6 6-6"></path>
-                                </svg>
+                            <div class="user-chip-wrapper" style="position:relative;">
+                                <div class="user-chip" id="userChipToggle" style="cursor:pointer;">
+                                    <div class="avatar"><%= System.Web.HttpUtility.HtmlEncode(initials) %></div>
+                                    <span class="name"><%= System.Web.HttpUtility.HtmlEncode(displayName) %></span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="m6 9 6 6 6-6"></path>
+                                    </svg>
+                                </div>
+                                <div id="userDropdownMenu" style="display:none; position:fixed; right:0; top:calc(100% + 8px); background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.12); min-width:180px; z-index:1000; overflow:hidden;">
+                                    <a href="../thong-tin-tai-khoan.aspx" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color:#334155; text-decoration:none; font-size:14px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                                        <i class="fa fa-user"></i> Thông tin tài khoản
+                                    </a>
+                                    <div style="border-top:1px solid #e2e8f0;"></div>
+                                    <a href="#" onclick="dangXuat(); return false;" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color:#dc2626; text-decoration:none; font-size:14px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">
+                                        <i class="fa fa-right-from-bracket"></i> Đăng xuất
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -218,6 +229,58 @@
             updateClock();
             setInterval(updateClock, 1000);
         })();
+    </script>
+    <script>
+        var userDropdownMenu = document.getElementById('userDropdownMenu');
+        var userChipToggle = document.getElementById('userChipToggle');
+
+        userChipToggle.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var isOpen = userDropdownMenu.style.display === 'block';
+
+            if (isOpen) {
+                userDropdownMenu.style.display = 'none';
+            } else {
+                // Tính toạ độ theo vị trí thực tế của user-chip trên màn hình (không phụ thuộc overflow của cha)
+                var rect = userChipToggle.getBoundingClientRect();
+                var menuWidth = 180; // khớp min-width CSS bên dưới
+
+                var top = rect.bottom + 8;
+                var right = window.innerWidth - rect.right;
+
+                // Đảm bảo không tràn ra ngoài mép trái màn hình trên mobile hẹp
+                if (window.innerWidth - menuWidth - right < 8) {
+                    right = window.innerWidth - menuWidth - 8;
+                }
+
+                userDropdownMenu.style.top = top + 'px';
+                userDropdownMenu.style.right = right + 'px';
+                userDropdownMenu.style.left = 'auto';
+                userDropdownMenu.style.display = 'block';
+            }
+        });
+
+        document.addEventListener('click', function () {
+            userDropdownMenu.style.display = 'none';
+        });
+
+        document.addEventListener('scroll', function () {
+            userDropdownMenu.style.display = 'none';
+        }, true);
+
+        function dangXuat() {
+            if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+                fetch('../logout.aspx/DangXuat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                    body: JSON.stringify({})
+                }).then(function () {
+                    window.location.href = '../login.aspx';
+                }).catch(function () {
+                    window.location.href = '../login.aspx';
+                });
+            }
+        }
     </script>
     <script src="<%= ResolveUrl("~/assets/js/danh-muc/script.js") %>"></script>
 </body>

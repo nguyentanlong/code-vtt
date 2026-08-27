@@ -48,7 +48,7 @@ namespace VTT.libs
             { "@GhiChu", ghiChu }
         };
 
-                db.ExecuteDatasetStoredProcedure("dbo.sp_chinh_NhatKy_DangNhap", parameters);
+                db.ExecuteDatasetStoredProcedure("dbo.sp_v2_GhiLogDangNhapThatBai", parameters);//sp_chinh_NhatKy_DangNhap
             }
             catch (Exception ex)
             {

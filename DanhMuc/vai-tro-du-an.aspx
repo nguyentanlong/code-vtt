@@ -2,7 +2,7 @@
     AutoEventWireup="true" CodeFile="vai-tro-du-an.aspx.cs" Inherits="VTT.DanhMuc.vai_tro_du_an" %>
 
     <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
-        <link href="../assets/css/danh-muc/cong-ty.css?v=<% Response.Write(VTT.libs.libs.randomVersion()); %>"
+        <link href="../assets/css/danh-muc/style.css?v=<% Response.Write(VTT.libs.libs.randomVersion()); %>"
             rel="stylesheet" />
         <link href="../assets/css/danh-muc/vai-tro-du-an.css?v=<% Response.Write(VTT.libs.libs.randomVersion()); %>"
             rel="stylesheet" />

@@ -12,18 +12,17 @@ namespace VTT
     public partial class verify_login : System.Web.UI.Page
     {
         private static readonly ILog log = LogManager.GetLogger(typeof(verify_login));
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (!IsPostBack)
             {
-                // Nếu chưa qua bước child.aspx thì đá về trang login
                 if (Session["Pending_TaiKhoanID"] == null)
                 {
-                    Response.Redirect("~/child.aspx");
+                    Response.Redirect("~/login.aspx");
                     return;
                 }
 
-                // Mask email để bảo mật (ví dụ: a***@gmail.com)
                 string email = Session["Pending_Email"] != null ? Session["Pending_Email"].ToString() : "";
                 if (!string.IsNullOrEmpty(email) && email.Contains("@"))
                 {
@@ -48,8 +47,7 @@ namespace VTT
 
             long taiKhoanId = Convert.ToInt64(HttpContext.Current.Session["Pending_TaiKhoanID"]);
 
-            // Gọi Stored Procedure kiểm tra OTP
-            DataSet ds = db.ExecuteDatasetStoredProcedure("dbo.sp_chinh_TaiKhoan_OTP", new Dictionary<string, object> {
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_TaiKhoan_OTP", new Dictionary<string, object> {
                 { "@Action", "VERIFY" },
                 { "@TaiKhoanID", taiKhoanId },
                 { "@OTPCode", otp }
@@ -62,36 +60,31 @@ namespace VTT
 
                 if (isSuccess)
                 {
-                    if (isSuccess)
-                    {
-                        // 1. Chuyển từ Session Temp sang Session chính thức của hệ thống
-                        HttpContext.Current.Session["TaiKhoanID"] = taiKhoanId;
-                        HttpContext.Current.Session["NhanVienID"] = HttpContext.Current.Session["Pending_NhanVienID"];
-                        HttpContext.Current.Session["Username"] = HttpContext.Current.Session["Pending_Username"];
-                        HttpContext.Current.Session["HoTen"] = HttpContext.Current.Session["Pending_HoTen"];
-                        HttpContext.Current.Session["Email"] = HttpContext.Current.Session["Pending_Email"];
-                        HttpContext.Current.Session["CongTyID"] = HttpContext.Current.Session["Pending_CongTyID"];
-                        HttpContext.Current.Session["PhongBanID"] = HttpContext.Current.Session["Pending_PhongBanID"];
-                        HttpContext.Current.Session["ChucDanhID"] = HttpContext.Current.Session["Pending_ChucDanhID"];
-                        HttpContext.Current.Session["VaiTroID"] = HttpContext.Current.Session["Pending_VaiTroID"];
-HttpContext.Current.Session["MaVaiTro"] = HttpContext.Current.Session["Pending_MaVaiTro"];
+                    // 1. Chuyển từ Session Temp sang Session chính thức (theo đúng tên cột schema v2)
+                    HttpContext.Current.Session["TaiKhoanID"] = taiKhoanId;
+                    HttpContext.Current.Session["NhanVienID"] = HttpContext.Current.Session["Pending_NhanVienID"];
+                    HttpContext.Current.Session["TenDangNhap"] = HttpContext.Current.Session["Pending_TenDangNhap"];
+                    HttpContext.Current.Session["HoTen"] = HttpContext.Current.Session["Pending_HoTen"];
+                    HttpContext.Current.Session["Email"] = HttpContext.Current.Session["Pending_Email"];
+                    HttpContext.Current.Session["CongTyID"] = HttpContext.Current.Session["Pending_CongTyID"];
+                    HttpContext.Current.Session["PhongBanID"] = HttpContext.Current.Session["Pending_PhongBanID"];
+                    HttpContext.Current.Session["ChiNhanhID"] = HttpContext.Current.Session["Pending_ChiNhanhID"];
+                    HttpContext.Current.Session["ChucVuID"] = HttpContext.Current.Session["Pending_ChucVuID"];
 
-                        // 2. Dọn dẹp toàn bộ Temp Session
-                        HttpContext.Current.Session.Remove("Pending_TaiKhoanID");
-                        HttpContext.Current.Session.Remove("Pending_Username");
-                        HttpContext.Current.Session.Remove("Pending_NhanVienID");
-                        HttpContext.Current.Session.Remove("Pending_HoTen");
-                        HttpContext.Current.Session.Remove("Pending_Email");
-                        HttpContext.Current.Session.Remove("Pending_CongTyID");
-                        HttpContext.Current.Session.Remove("Pending_PhongBanID");
-                        HttpContext.Current.Session.Remove("Pending_ChucDanhID");
-                        HttpContext.Current.Session.Remove("Pending_VaiTroID");
-                        HttpContext.Current.Session.Remove("Pending_MaVaiTro");
+                    // 2. Dọn dẹp toàn bộ Temp Session
+                    HttpContext.Current.Session.Remove("Pending_TaiKhoanID");
+                    HttpContext.Current.Session.Remove("Pending_TenDangNhap");
+                    HttpContext.Current.Session.Remove("Pending_NhanVienID");
+                    HttpContext.Current.Session.Remove("Pending_HoTen");
+                    HttpContext.Current.Session.Remove("Pending_Email");
+                    HttpContext.Current.Session.Remove("Pending_CongTyID");
+                    HttpContext.Current.Session.Remove("Pending_PhongBanID");
+                    HttpContext.Current.Session.Remove("Pending_ChiNhanhID");
+                    HttpContext.Current.Session.Remove("Pending_ChucVuID");
 
-                        res.Success = true;
-                        res.Message = "Xác thực thành công!";
-                        res.RedirectUrl = "child.aspx"; // Hoặc trang bạn muốn chuyển đến
-                    }
+                    res.Success = true;
+                    res.Message = "Xác thực thành công!";
+                    res.RedirectUrl = "child.aspx";
                 }
                 else
                 {
@@ -123,34 +116,29 @@ HttpContext.Current.Session["MaVaiTro"] = HttpContext.Current.Session["Pending_M
                 string hoTen = HttpContext.Current.Session["Pending_HoTen"].ToString();
                 string clientIP = HttpContext.Current.Request.UserHostAddress;
 
-                // 1. Sinh mã OTP mới
                 Random generator = new Random();
                 string otpCode = generator.Next(0, 1000000).ToString("D6");
 
-                // 2. Ghi đè OTP trong DB (Procedure sẽ tự expire mã cũ)
                 Dictionary<string, object> otpParams = new Dictionary<string, object>
-        {
-            { "@Action", "GENERATE" },
-            { "@TaiKhoanID", taiKhoanId },
-            { "@OTPCode", otpCode },
-            { "@IPAddress", clientIP }
-        };
-                db.ExecuteDatasetStoredProcedure("dbo.sp_chinh_TaiKhoan_OTP", otpParams);
+                {
+                    { "@Action", "GENERATE" },
+                    { "@TaiKhoanID", taiKhoanId },
+                    { "@OTPCode", otpCode },
+                    { "@IPAddress", clientIP }
+                };
+                db.ExecuteDatasetStoredProcedure("sp_chinh_TaiKhoan_OTP", otpParams);
 
-                // 3. Gửi lại Email
                 string subject = $"[{otpCode}] Mã xác thực đăng nhập hệ thống VTT (Mã mới)";
                 string body = $"Xin chào <b>{hoTen}</b>,<br/>Mã OTP mới của bạn là: <b style='font-size:20px; color:#2563eb;'>{otpCode}</b> (Hiệu lực 5 phút).";
 
                 using (SmtpClient smtp = new SmtpClient())
+                using (MailMessage mail = new MailMessage())
                 {
-                    using (MailMessage mail = new MailMessage())
-                    {
-                        mail.To.Add(email);
-                        mail.Subject = subject;
-                        mail.Body = body;
-                        mail.IsBodyHtml = true;
-                        smtp.Send(mail);
-                    }
+                    mail.To.Add(email);
+                    mail.Subject = subject;
+                    mail.Body = body;
+                    mail.IsBodyHtml = true;
+                    smtp.Send(mail);
                 }
 
                 res.Success = true;

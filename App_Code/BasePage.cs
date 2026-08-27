@@ -1,41 +1,31 @@
 using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Web;
 using System.Web.UI;
+using VTT.libs;
 
 namespace VTT.libs
 {
-    public class AccessScope
-    {
-        public bool IsFullAccess { get; set; }  // true = Admin/IT, CRUD toàn hệ thống
-        public long PhongBanID { get; set; }    // phòng ban của tài khoản hiện tại
-    }
     public class BasePage : Page
     {
         protected override void OnInit(EventArgs e)
         {
             base.OnInit(e);
 
-            // Kiểm tra Session chính thức (TaiKhoanID)
             if (Session["TaiKhoanID"] == null)
             {
-                // Nếu là request trang bình thường (GET page), chuyển hướng về Login
                 string currentUrl = Server.UrlEncode(Request.RawUrl);
                 Response.Redirect($"~/login.aspx?returnUrl={currentUrl}", true);
             }
         }
 
-        /// <summary>
-        /// Hàm tiện ích dùng cho các static [WebMethod] kiểm tra quyền truy cập AJAX
-        /// </summary>
         public static bool IsAuthenticated()
         {
             var context = HttpContext.Current;
             return context != null && context.Session != null && context.Session["TaiKhoanID"] != null;
         }
 
-        /// <summary>
-        /// Lấy TaiKhoanID của User hiện tại đang đăng nhập
-        /// </summary>
         public static long GetCurrentUserId()
         {
             var context = HttpContext.Current;
@@ -46,9 +36,6 @@ namespace VTT.libs
             return 0;
         }
 
-        /// <summary>
-        /// Lấy CongTyID của User hiện tại đang đăng nhập
-        /// </summary>
         public static long GetCurrentCongTyId()
         {
             var context = HttpContext.Current;
@@ -58,30 +45,80 @@ namespace VTT.libs
             }
             return 0;
         }
-            // Long thêm
-        private static readonly string[] FullAccessRoleCodes = { "ADMIN", "IT" };
 
-            protected static AccessScope GetCurrentAccessScope()
+        public static long GetCurrentPhongBanId()
+        {
+            var context = HttpContext.Current;
+            if (context != null && context.Session != null && context.Session["PhongBanID"] != null && context.Session["PhongBanID"] != DBNull.Value)
             {
-                var maVaiTro = System.Web.HttpContext.Current.Session["MaVaiTro"] as string ?? "";
-                var phongBanObj = System.Web.HttpContext.Current.Session["PhongBanID"];
-
-                return new AccessScope
-                {
-                    IsFullAccess = Array.Exists(FullAccessRoleCodes, code => code.Equals(maVaiTro, StringComparison.OrdinalIgnoreCase)),
-                    PhongBanID = phongBanObj != null ? Convert.ToInt64(phongBanObj) : 0
-                };
+                return Convert.ToInt64(context.Session["PhongBanID"]);
             }
+            return 0;
+        }
 
-            /// <summary>
-            /// Kiểm tra tài khoản hiện tại có được SỬA/XÓA (CRUD) dữ liệu thuộc 1 Phòng ban cụ thể không.
-            /// Admin/IT luôn được phép. Người khác chỉ được phép nếu đúng Phòng ban của mình.
-            /// </summary>
-            protected static bool CanEdit(long targetPhongBanId)
+        public static long GetCurrentChiNhanhId()
+        {
+            var context = HttpContext.Current;
+            if (context != null && context.Session != null && context.Session["ChiNhanhID"] != null && context.Session["ChiNhanhID"] != DBNull.Value)
             {
-                var scope = GetCurrentAccessScope();
-                return scope.IsFullAccess || scope.PhongBanID == targetPhongBanId;
+                return Convert.ToInt64(context.Session["ChiNhanhID"]);
             }
+            return 0;
+        }
 
+        /// <summary>
+        /// Lấy phạm vi (DataScope) mà tài khoản hiện tại được cấp cho 1 Chức năng trên 1 Trang,
+        /// KHÔNG so khớp với bản ghi cụ thể nào — dùng để lọc câu truy vấn danh sách (GetList)
+        /// trước khi trả dữ liệu về client, tránh lộ dữ liệu ngoài phạm vi rồi chỉ ẩn nút ở giao diện.
+        /// </summary>
+        /// <returns>"CONGTY" / "CHINHANH" / "PHONGBAN" nếu được phép; null nếu bị từ chối (DENY)</returns>
+        protected static string GetPermissionScope(string maTrang, string maChucNang)
+        {
+            long taiKhoanId = GetCurrentUserId();
+            if (taiKhoanId == 0) return null;
+
+            ConnectServer db = new ConnectServer();
+            var pars = new Dictionary<string, object>
+            {
+                { "@TaiKhoanID", taiKhoanId },
+                { "@MaTrang", maTrang },
+                { "@MaChucNang", maChucNang }
+            };
+
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_KiemTraQuyen", pars);
+            if (ds == null || ds.Tables.Count == 0 || ds.Tables[0].Rows.Count == 0)
+                return null;
+
+            DataRow dr = ds.Tables[0].Rows[0];
+            string giaTri = dr["GiaTri"] == DBNull.Value ? "DENY" : dr["GiaTri"].ToString();
+            if (giaTri != "ALLOW") return null;
+
+            return dr["DataScope"] == DBNull.Value ? null : dr["DataScope"].ToString();
+        }
+
+        /// <summary>
+        /// Kiểm tra tài khoản hiện tại có được phép thực hiện 1 Chức năng lên 1 bản ghi cụ thể không,
+        /// dựa trên phạm vi (DataScope) so khớp với Phòng ban/Chi nhánh của bản ghi đích.
+        /// </summary>
+        protected static bool CheckPermission(string maTrang, string maChucNang, long targetPhongBanId = 0, long targetChiNhanhId = 0)
+        {
+            string dataScope = GetPermissionScope(maTrang, maChucNang);
+            if (dataScope == null) return false;
+
+            switch (dataScope)
+            {
+                case "CONGTY":
+                    return true;
+
+                case "CHINHANH":
+                    return targetChiNhanhId != 0 && targetChiNhanhId == GetCurrentChiNhanhId();
+
+                case "PHONGBAN":
+                    return targetPhongBanId != 0 && targetPhongBanId == GetCurrentPhongBanId();
+
+                default:
+                    return false;
+            }
+        }
     }
 }
