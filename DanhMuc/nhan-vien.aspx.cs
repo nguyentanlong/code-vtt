@@ -33,7 +33,7 @@ namespace VTT.DanhMuc
             return 0; // 0 nghĩa là Phòng ban thuộc thẳng Tổng công ty, không qua Chi nhánh
         }
 
-        [WebMethod(EnableSession = true)]
+        /*[WebMethod(EnableSession = true)]
         public static object GetPermission()
         {
             if (!IsAuthenticated())
@@ -43,6 +43,18 @@ namespace VTT.DanhMuc
             bool canThem = CheckPermission("NHANVIEN", "THEM", GetCurrentPhongBanId(), GetCurrentChiNhanhId());
 
             return new { success = true, data = new { canXem = canXem, canThem = canThem } };
+        }*/
+        [WebMethod(EnableSession = true)]
+        public static object GetPermission()
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            bool canXem = CheckPermission("NHANVIEN", "XEM", GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            bool canThem = CheckPermission("NHANVIEN", "THEM", GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            string myScope = GetPermissionScope("NHANVIEN", "XEM"); // "CONGTY" / "CHINHANH" / "PHONGBAN" / null
+
+            return new { success = true, data = new { canXem = canXem, canThem = canThem, scope = myScope } };
         }
 
         [WebMethod(EnableSession = true)]

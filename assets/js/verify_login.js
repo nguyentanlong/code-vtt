@@ -112,6 +112,11 @@ function doVerify() {
             } else {
                 $('#alertMsg').removeClass('alert-success').addClass('alert-danger').text(res.Message).removeClass('d-none');
             }
+        },
+        error: function (xhr, status, error) {
+            console.error('Lỗi XacNhanOTP:', xhr.status, xhr.responseText);
+            $('#alertMsg').removeClass('alert-success').addClass('alert-danger')
+                .text('Lỗi kết nối máy chủ! Vui lòng thử lại sau.').removeClass('d-none');
         }
     });
 }

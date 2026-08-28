@@ -12,6 +12,13 @@ namespace VTT.libs
         protected override void OnInit(EventArgs e)
         {
             base.OnInit(e);
+            // Ngăn trình duyệt lưu cache trang này (kể cả qua nút Back/Forward hay mở lại từ Lịch sử),
+            // đảm bảo mọi lần truy cập trang được bảo vệ đều phải qua kiểm tra Session mới trên server,
+            // không hiển thị lại nội dung cũ từ bộ nhớ đệm sau khi đã Đăng xuất.
+            Response.Cache.SetCacheability(HttpCacheability.NoCache);
+            Response.Cache.SetNoStore();
+            Response.Cache.SetExpires(DateTime.UtcNow.AddDays(-1));
+            Response.AppendHeader("Pragma", "no-cache");
 
             if (Session["TaiKhoanID"] == null)
             {

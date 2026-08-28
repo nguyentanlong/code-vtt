@@ -14,7 +14,8 @@
     });
 
     // Lắng nghe sự kiện click nút Đăng nhập
-    $('#btnLogin').click(function () {
+    $('#btnLogin').click(function (e) {
+        e.preventDefault(); // Chặn hành vi submit mặc định nếu nút nằm trong <form>
         doLogin();
     });
 
@@ -22,12 +23,17 @@
     $('#txtUsername, #txtPassword').keypress(function (e) {
         if (e.which === 13) {
             e.preventDefault();
+            e.stopPropagation();
             doLogin();
         }
     });
 });
 
+var isSubmittingLogin = false; // Cờ chặn gọi trùng lặp (double-submit)
+
 function doLogin() {
+    if (isSubmittingLogin) return; // Đang xử lý request trước đó -> bỏ qua request mới
+
     var username = $('#txtUsername').val().trim();
     var password = $('#txtPassword').val().trim();
 
@@ -36,10 +42,10 @@ function doLogin() {
         return;
     }
 
+    isSubmittingLogin = true;
     setLoading(true);
     hideAlert();
 
-    // Gọi AJAX tới C# WebMethod
     $.ajax({
         type: "POST",
         url: "login.aspx/XuLyDangNhap",
@@ -48,18 +54,18 @@ function doLogin() {
         dataType: "json",
         success: function (response) {
             setLoading(false);
+            isSubmittingLogin = false;
             var result = response.d;
 
             if (result.Success) {
-                // Đăng nhập thành công -> Chuyển hướng
                 window.location.href = result.RedirectUrl;
             } else {
-                // Hiển thị thông báo lỗi (Bao gồm cảnh báo sai mật khẩu hoặc bị Khóa IP)
                 showAlert(result.Message);
             }
         },
         error: function (xhr, status, error) {
             setLoading(false);
+            isSubmittingLogin = false;
             showAlert('Lỗi kết nối máy chủ! Vui lòng thử lại sau.');
             console.error(xhr.responseText);
         }

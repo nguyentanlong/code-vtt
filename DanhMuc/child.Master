@@ -269,17 +269,9 @@
         }, true);
 
         function dangXuat() {
-            if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
-                fetch('../logout.aspx/DangXuat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-                    body: JSON.stringify({})
-                }).then(function () {
-                    window.location.href = '../login.aspx';
-                }).catch(function () {
-                    window.location.href = '../login.aspx';
-                });
-            }
+        if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+            window.location.href = '/logout.aspx';
+        }
         }
     </script>
     <script src="<%= ResolveUrl("~/assets/js/danh-muc/script.js") %>"></script>

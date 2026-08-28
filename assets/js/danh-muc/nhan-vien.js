@@ -38,6 +38,16 @@ function loadPermission() {
     return callWebMethod("GetPermission", {}, function (res) {
         canThemPermission = res.data.canThem;
         document.getElementById("btnAddNew").style.display = canThemPermission ? "inline-flex" : "none";
+        // Chỉ Admin toàn công ty (scope = CONGTY) mới cần filter theo Chi nhánh.
+        // Các cấp thấp hơn (CHINHANH/PHONGBAN) đã bị giới hạn sẵn ở server, ẩn bớt filter cho gọn.
+        var scope = res.data.scope;
+        var chiNhanhFilterGroup = document.getElementById("ddlSearchChiNhanh").closest(".filter-group");
+
+        if (scope !== "CONGTY") {
+            chiNhanhFilterGroup.style.display = "none";
+        } else {
+            chiNhanhFilterGroup.style.display = "";
+        }
     });
 }
 
