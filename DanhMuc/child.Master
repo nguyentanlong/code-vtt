@@ -131,6 +131,9 @@
                                     <a href="../thong-tin-tai-khoan.aspx" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color:#334155; text-decoration:none; font-size:14px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
                                         <i class="fa fa-user"></i> Thông tin tài khoản
                                     </a>
+                                    <a href="../DanhMuc/quan-ly-thiet-bi.aspx" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color:#334155; text-decoration:none; font-size:14px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                                        <i class="fa fa-mobile-screen-button"></i> Quản lý thiết bị
+                                    </a>
                                     <div style="border-top:1px solid #e2e8f0;"></div>
                                     <a href="#" onclick="dangXuat(); return false;" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color:#dc2626; text-decoration:none; font-size:14px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">
                                         <i class="fa fa-right-from-bracket"></i> Đăng xuất
@@ -269,11 +272,20 @@
         }, true);
 
         function dangXuat() {
-        if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
-            window.location.href = '/logout.aspx';
-        }
+        showConfirmDialog("Bạn có chắc chắn muốn đăng xuất?", {
+            okText: "Đăng xuất",
+            cancelText: "Hủy",
+            danger: true,      // Nút đăng xuất sẽ có màu đỏ để gây chú ý
+            icon: "warning"    // Hiện icon dấu chấm than cảnh báo
+        }).then(function(confirm) {
+            if (confirm) {
+                // Nếu người dùng bấm "Đăng xuất"
+                window.location.href = '/logout.aspx';
+            }
+        });
         }
     </script>
+    <script src="../assets/js/ui-alert.js"></script>
     <script src="<%= ResolveUrl("~/assets/js/danh-muc/script.js") %>"></script>
 </body>
 </html>

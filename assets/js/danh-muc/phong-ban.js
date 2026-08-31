@@ -1,234 +1,205 @@
-﻿let currentCongTyId = 1; // ID công ty hiện tại (có thể lấy từ Session/HiddenField)
+﻿var canThemPermission = false;
 
-$(document).ready(function () {
-    loadData();
-    loadDropdownPhongBanCha();
+document.addEventListener("DOMContentLoaded", function () {
+    Promise.all([loadPermission(), loadChiNhanhOptions()]).then(function () {
+        loadData();
+    });
 });
 
-// 1. LẤY DANH SÁCH PHÒNG BAN (Đồng bộ với GetList Backend)
+function callWebMethod(methodName, dataObj, successCallback) {
+    return fetch("phong-ban.aspx/" + methodName, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify(dataObj || {})
+    })
+        .then(response => response.json())
+        .then(res => {
+            var result = res.d;
+            if (result && result.success) {
+                successCallback(result);
+            } else {
+                var errorMsg = result ? result.message : "Thao tác thất bại!";
+                showToast(errorMsg, "error");
+                if (errorMsg && (errorMsg.includes("đăng nhập") || errorMsg.includes("hết hạn"))) {
+                    var currentUrl = encodeURIComponent(window.location.href);
+                    window.location.href = "../login.aspx?returnUrl=" + currentUrl;
+                }
+            }
+        })
+        .catch(err => {
+            console.error("AJAX Error:", err);
+            showToast("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!", "error");
+        });
+}
+
+function loadPermission() {
+    return callWebMethod("GetPermission", {}, function (res) {
+        canThemPermission = res.data.canThem;
+        document.getElementById("btnAddNew").style.display = canThemPermission ? "inline-flex" : "none";
+
+        var scope = res.data.scope;
+        var chiNhanhFilterGroup = document.getElementById("ddlSearchChiNhanh").closest(".filter-group");
+        chiNhanhFilterGroup.style.display = (scope === "CONGTY") ? "" : "none";
+    });
+}
+
+function loadChiNhanhOptions() {
+    return callWebMethod("GetChiNhanhOptions", {}, function (res) {
+        var ddlFilter = document.getElementById("ddlSearchChiNhanh");
+        ddlFilter.innerHTML = '<option value="">-- Tất cả chi nhánh --</option>';
+        var ddlForm = document.getElementById("ddlFormChiNhanh");
+        ddlForm.innerHTML = '<option value="">-- Trực thuộc Tổng công ty --</option>';
+
+        (res.data || []).forEach(function (cn) {
+            var opt = `<option value="${cn.ChiNhanhID}">${escapeHtml(cn.TenChiNhanh)}</option>`;
+            ddlFilter.innerHTML += opt;
+            ddlForm.innerHTML += opt;
+        });
+    });
+}
+
+function loadChaOptions(excludeId, selectedId) {
+    return callWebMethod("GetChaOptions", { excludeId: excludeId || 0 }, function (res) {
+        var ddl = document.getElementById("ddlFormPhongBanCha");
+        ddl.innerHTML = '<option value="">-- Không có (Cấp cao nhất) --</option>';
+        (res.data || []).forEach(function (pb) {
+            var selected = (selectedId && pb.PhongBanID == selectedId) ? "selected" : "";
+            ddl.innerHTML += `<option value="${pb.PhongBanID}" ${selected}>${pb.TenPhongBan}</option>`;
+        });
+    });
+}
+
 function loadData() {
-    const keyword = $("#txtKeyword").val() ? $("#txtKeyword").val().trim() : "";
-    const trangThai = $("#ddlFilterTrangThai").val() || "";
+    var keyword = document.getElementById("txtSearchKeyword").value;
+    var chiNhanhId = document.getElementById("ddlSearchChiNhanh").value;
+    var trangThai = document.getElementById("ddlSearchTrangThai").value;
 
-    $.ajax({
-        type: "POST",
-        url: "phong-ban.aspx/GetList",
-        data: JSON.stringify({
-            congTyId: currentCongTyId,
-            keyword: keyword,
-            trangThai: trangThai
-        }),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (res) {
-            const response = res.d;
-            if (response.success) {
-                renderTable(response.data);
-            } else {
-                alert("Thông báo: " + response.message);
-            }
-        },
-        error: function (err) {
-            console.error("Lỗi AJAX GetList:", err);
-            alert("Không thể kết nối đến máy chủ!");
+    callWebMethod("GetList", {
+        keyword: keyword,
+        chiNhanhId: chiNhanhId ? parseInt(chiNhanhId) : null,
+        trangThai: trangThai
+    }, function (res) {
+        var tbody = document.getElementById("tbodyPhongBan");
+        tbody.innerHTML = "";
+
+        if (!res.data || res.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">Không tìm thấy dữ liệu nào</td></tr>';
+            return;
         }
+
+        res.data.forEach(function (item) {
+            var badgeClass = item.TrangThai === 1 ? "badge-success" : "badge-danger";
+            var statusText = item.TrangThai === 1 ? "Đang hoạt động" : "Ngừng hoạt động";
+
+            var actionsHtml = "";
+            if (item.CanEditRow) {
+                actionsHtml += `
+                    <button type="button" class="btn-icon text-edit" onclick="openModal(${item.PhongBanID})" title="Chỉnh sửa">
+                        <i class="fa fa-edit"></i> Sửa
+                    </button>
+                `;
+            }
+            if (item.CanDeleteRow) {
+                actionsHtml += `
+                    <button type="button" class="btn-icon text-delete" onclick="deleteData(${item.PhongBanID})" title="Xóa">
+                        <i class="fa fa-trash"></i> Xóa
+                    </button>
+                `;
+            }
+            if (!actionsHtml) actionsHtml = '<span style="color:#94a3b8; font-size:12px;">Chỉ xem</span>';
+
+            var tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${escapeHtml(item.MaPhongBan)}</strong></td>
+                <td style="white-space:pre;">${item.TenPhongBan}</td>
+                <td>${escapeHtml(item.TenChiNhanh || '')}</td>
+                <td style="text-align:center;">${item.CapDo}</td>
+                <td><span class="badge ${badgeClass}">${statusText}</span></td>
+                <td style="text-align:center; white-space:nowrap;">${actionsHtml}</td>
+            `;
+            tbody.appendChild(tr);
+        });
     });
 }
 
-// 2. RENDER DỮ LIỆU LÊN BẢNG
-function renderTable(list) {
-    let html = "";
-    if (!list || list.length === 0) {
-        html = '<tr><td colspan="9" class="text-center text-muted py-4">Không có dữ liệu phòng ban nào</td></tr>';
-        $("#tblDataPhongBan").html(html);
-        $("#lblPaginationInfo").text("Hiển thị 0 bản ghi"); // Cập nhật khi rỗng
-        return;
+function openModal(id) {
+    document.getElementById("hddPhongBanID").value = id;
+
+    if (id === 0) {
+        document.getElementById("modalTitle").innerText = "Thêm mới Đơn vị";
+        document.getElementById("txtMaPhongBan").value = "";
+        document.getElementById("txtMaPhongBan").readOnly = false;
+        document.getElementById("txtTenPhongBan").value = "";
+        document.getElementById("ddlFormChiNhanh").value = "";
+        document.getElementById("txtThuTu").value = "0";
+        document.getElementById("ddlTrangThai").value = "1";
+        loadChaOptions(0, null).then(function () {
+            document.getElementById("modalPhongBan").style.display = "flex";
+        });
+    } else {
+        document.getElementById("modalTitle").innerText = "Chỉnh sửa Đơn vị";
+        callWebMethod("GetById", { id: id }, function (res) {
+            var d = res.data;
+            document.getElementById("txtMaPhongBan").value = d.MaPhongBan;
+            document.getElementById("txtMaPhongBan").readOnly = true;
+            document.getElementById("txtTenPhongBan").value = d.TenPhongBan;
+            document.getElementById("ddlFormChiNhanh").value = d.ChiNhanhID || "";
+            document.getElementById("txtThuTu").value = d.ThuTu;
+            document.getElementById("ddlTrangThai").value = d.TrangThai;
+            loadChaOptions(id, d.PhongBanChaID).then(function () {
+                document.getElementById("modalPhongBan").style.display = "flex";
+            });
+        });
     }
-
-    list.forEach((item, index) => {
-        const stt = index + 1;
-        const statusBadge = item.TrangThai === 1
-            ? '<span class="badge bg-success">Đang hoạt động</span>'
-            : '<span class="badge bg-danger">Ngừng hoạt động</span>';
-
-        let indent = "";
-        for (let i = 1; i < item.CapDo; i++) {
-            indent += '<span class="tree-indent">&nbsp;&nbsp;&nbsp;&nbsp;</span>|-- ';
-        }
-
-        html += `
-            <tr>
-                <td class="text-center">${stt}</td>
-                <td><strong>${item.MaPhongBan}</strong></td>
-                <td>${indent}${item.TenPhongBan}</td>
-                <td>${item.TenPhongBanCha || "-"}</td>
-                <td>${item.TenTruongPhong || "-"}</td>
-                <td class="text-center">${item.CapDo}</td>
-                <td class="text-center">${item.ThuTu}</td>
-                <td class="text-center">${statusBadge}</td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-outline-primary me-1" title="Sửa" onclick="openModalEdit(${item.PhongBanID})">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" title="Xóa" onclick="deleteData(${item.PhongBanID})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    });
-
-    $("#tblDataPhongBan").html(html);
-
-    // THÊM DÒNG NÀY ĐỂ THAY THẾ CHỮ "ĐANG TẢI..."
-    $("#lblPaginationInfo").html(`Hiển thị tổng số <strong>${list.length}</strong> phòng ban`);
 }
 
-// 3. LOAD DROPDOWN PHÒNG BAN CHA
-function loadDropdownPhongBanCha() {
-    $.ajax({
-        type: "POST",
-        url: "phong-ban.aspx/GetList",
-        data: JSON.stringify({
-            congTyId: currentCongTyId,
-            keyword: "",
-            trangThai: "1" // Chỉ lấy phòng ban đang hoạt động làm cấp cha
-        }),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (res) {
-            const response = res.d;
-            if (response.success) {
-                let options = '<option value="0">-- Là phòng ban cấp cao nhất --</option>';
-                response.data.forEach(item => {
-                    options += `<option value="${item.PhongBanID}">${item.TenPhongBan} (${item.MaPhongBan})</option>`;
-                });
-                $("#ddlPhongBanCha").html(options);
-            }
-        }
-    });
+function closeModal() {
+    document.getElementById("modalPhongBan").style.display = "none";
 }
 
-// 4. LẤY CHI TIẾT ĐỂ SỬA (Đồng bộ với GetById Backend)
-function openModalEdit(id) {
-    $.ajax({
-        type: "POST",
-        url: "phong-ban.aspx/GetById",
-        data: JSON.stringify({ id: id }),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (res) {
-            const response = res.d;
-            if (response.success) {
-                const item = response.data;
-                $("#hdfPhongBanID").val(item.PhongBanID);
-                $("#txtMaPhongBan").val(item.MaPhongBan);
-                $("#txtTenPhongBan").val(item.TenPhongBan);
-                $("#ddlPhongBanCha").val(item.PhongBanChaID || 0);
-                $("#txtTruongPhongID").val(item.TruongPhongID || "");
-                $("#txtThuTu").val(item.ThuTu);
-                $("#ddlTrangThai").val(item.TrangThai);
-
-                $("#modalTitle").text("Cập nhật Phòng Ban");
-                $("#modalPhongBan").modal("show");
-            } else {
-                alert(response.message);
-            }
-        },
-        error: function (err) {
-            console.error("Lỗi AJAX GetById:", err);
-        }
-    });
-}
-
-// 5. MỞ MODAL THÊM MỚI
-function openModalAdd() {
-    $("#hdfPhongBanID").val(0);
-    $("#txtMaPhongBan").val("");
-    $("#txtTenPhongBan").val("");
-    $("#ddlPhongBanCha").val(0);
-    $("#txtTruongPhongID").val("");
-    $("#txtThuTu").val(0);
-    $("#ddlTrangThai").val(1);
-
-    $("#modalTitle").text("Thêm mới Phòng Ban");
-    $("#modalPhongBan").modal("show");
-}
-
-// 6. LƯU DỮ LIỆU (Đồng bộ với SaveData Backend)
 function saveData() {
-    const phongBanId = parseInt($("#hdfPhongBanID").val()) || 0;
-    const maPhongBan = $("#txtMaPhongBan").val().trim();
-    const tenPhongBan = $("#txtTenPhongBan").val().trim();
-    const phongBanChaId = parseInt($("#ddlPhongBanCha").val()) || null;
-    const truongPhongId = parseInt($("#txtTruongPhongID").val()) || null;
-    const thuTu = parseInt($("#txtThuTu").val()) || 0;
-    const trangThai = parseInt($("#ddlTrangThai").val());
+    var id = parseInt(document.getElementById("hddPhongBanID").value);
+    var maPhongBan = document.getElementById("txtMaPhongBan").value.trim();
+    var tenPhongBan = document.getElementById("txtTenPhongBan").value.trim();
+    var chiNhanhId = document.getElementById("ddlFormChiNhanh").value;
+    var phongBanChaId = document.getElementById("ddlFormPhongBanCha").value;
 
-    // Validate client
-    if (!maPhongBan) {
-        alert("Vui lòng nhập Mã phòng ban!");
-        $("#txtMaPhongBan").focus();
-        return;
-    }
-    if (!tenPhongBan) {
-        alert("Vui lòng nhập Tên phòng ban!");
-        $("#txtTenPhongBan").focus();
-        return;
-    }
+    if (!maPhongBan) { showToast("Vui lòng nhập Mã đơn vị!", "error"); return; }
+    if (!tenPhongBan) { showToast("Vui lòng nhập Tên đơn vị!", "error"); return; }
 
-    $.ajax({
-        type: "POST",
-        url: "phong-ban.aspx/SaveData",
-        data: JSON.stringify({
-            phongBanId: phongBanId,
-            congTyId: currentCongTyId,
-            maPhongBan: maPhongBan,
-            tenPhongBan: tenPhongBan,
-            phongBanChaId: phongBanChaId,
-            truongPhongId: truongPhongId,
-            thuTu: thuTu,
-            trangThai: trangThai
-        }),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (res) {
-            const response = res.d;
-            alert(response.message);
-            if (response.success) {
-                $("#modalPhongBan").modal("hide");
-                loadData();
-                loadDropdownPhongBanCha();
-            }
-        },
-        error: function (err) {
-            console.error("Lỗi AJAX SaveData:", err);
-            alert("Lưu dữ liệu thất bại!");
-        }
+    var payload = {
+        phongBanId: id,
+        chiNhanhId: chiNhanhId ? parseInt(chiNhanhId) : null,
+        phongBanChaId: phongBanChaId ? parseInt(phongBanChaId) : null,
+        maPhongBan: maPhongBan,
+        tenPhongBan: tenPhongBan,
+        thuTu: parseInt(document.getElementById("txtThuTu").value) || 0,
+        trangThai: parseInt(document.getElementById("ddlTrangThai").value)
+    };
+
+    callWebMethod("SaveData", payload, function (res) {
+        showToast(res.message, "success");
+        closeModal();
+        loadData();
     });
 }
 
-// 7. XÓA PHÒNG BAN (Đồng bộ với DeleteData Backend)
 function deleteData(id) {
-    if (!confirm("Bạn có chắc chắn muốn xóa phòng ban này?")) return;
-
-    $.ajax({
-        type: "POST",
-        url: "phong-ban.aspx/DeleteData",
-        data: JSON.stringify({ id: id }),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (res) {
-            const response = res.d;
-            alert(response.message);
-            if (response.success) {
-                loadData();
-                loadDropdownPhongBanCha();
-            }
-        },
-        error: function (err) {
-            console.error("Lỗi AJAX DeleteData:", err);
-            alert("Xóa thất bại!");
-        }
+    showConfirmDialog("Bạn có chắc chắn muốn xóa Đơn vị này khỏi hệ thống?").then(function (ok) {
+        if (!ok) return;
+        callWebMethod("DeleteData", { id: id }, function (res) {
+            showToast(res.message, "success");
+            loadData();
+        });
     });
+}
+
+function escapeHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }

@@ -21,7 +21,9 @@ function callWebMethod(methodName, dataObj, successCallback) {
                 successCallback(result);
             } else {
                 var errorMsg = result ? result.message : "Thao tác thất bại!";
-                alert("Lỗi: " + errorMsg);
+                // Thay vì: alert("Lỗi: " + errorMsg);
+                showAlertDialog("Lỗi: " + errorMsg, "error");
+
                 if (errorMsg && (errorMsg.includes("đăng nhập") || errorMsg.includes("hết hạn"))) {
                     var currentUrl = encodeURIComponent(window.location.href);
                     window.location.href = "../login.aspx?returnUrl=" + currentUrl;
@@ -30,7 +32,9 @@ function callWebMethod(methodName, dataObj, successCallback) {
         })
         .catch(err => {
             console.error("AJAX Error:", err);
-            alert("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!");
+            showAlertDialog("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!", "error").then(function () {
+                // 💡 Đặt các hành động bạn muốn thực hiện SAU KHI người dùng bấm nút "OK" tại đây
+            });
         });
 }
 
@@ -207,9 +211,29 @@ function saveData() {
     var phongBanId = document.getElementById("ddlFormPhongBan").value;
     var chucVuId = document.getElementById("ddlFormChucVu").value;
 
-    if (!maNhanVien) { alert("Vui lòng nhập Mã nhân viên!"); document.getElementById("txtMaNhanVien").focus(); return; }
+    /*if (!maNhanVien) { alert("Vui lòng nhập Mã nhân viên!"); document.getElementById("txtMaNhanVien").focus(); return; }
     if (!hoTen) { alert("Vui lòng nhập Họ tên!"); document.getElementById("txtHoTen").focus(); return; }
-    if (!phongBanId) { alert("Vui lòng chọn Phòng ban!"); return; }
+    if (!phongBanId) { alert("Vui lòng chọn Phòng ban!"); return; }*/
+    if (!maNhanVien) {
+        showAlertDialog("Vui lòng nhập Mã nhân viên!", "warning").then(function () {
+            document.getElementById("txtMaNhanVien").focus();
+        });
+        return; // Vẫn phải giữ return ở ngoài để dừng không cho chạy code phía dưới nữa
+    }
+
+    if (!hoTen) {
+        showAlertDialog("Vui lòng nhập Họ tên!", "warning").then(function () {
+            document.getElementById("txtHoTen").focus();
+        });
+        return;
+    }
+
+    if (!phongBanId) {
+        // Trường hợp này không cần focus, không cần làm gì sau khi bấm OK nên bạn có thể viết gọn không cần .then()
+        showAlertDialog("Vui lòng chọn Phòng ban!", "warning");
+        return;
+    }
+
 
     var payload = {
         nhanVienId: id,
@@ -223,19 +247,26 @@ function saveData() {
     };
 
     callWebMethod("SaveData", payload, function (res) {
-        alert(res.message);
+        // Thay vì: alert(res.message);
+        showToast(res.message, "success");
         closeModal();
         loadData();
     });
 }
 
 function deleteData(id) {
-    if (confirm("Bạn có chắc chắn muốn xóa Nhân viên này khỏi hệ thống?")) {
+    /*    if (confirm("Bạn có chắc chắn muốn xóa Nhân viên này khỏi hệ thống?")) {
+            callWebMethod("DeleteData", { id: id }, function (res) {
+                alert(res.message);
+                loadData();
+            });*/
+    showConfirmDialog("Bạn có chắc chắn muốn xóa?").then(function (ok) {
+        if (!ok) return;
         callWebMethod("DeleteData", { id: id }, function (res) {
-            alert(res.message);
+            showToast(res.message, "success");
             loadData();
         });
-    }
+    });
 }
 
 function escapeHtml(text) {

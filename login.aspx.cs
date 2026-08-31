@@ -60,7 +60,7 @@ namespace VTT
         }
 
         [WebMethod(EnableSession = true)]
-        public static LoginResponse XuLyDangNhap(string username, string password)
+        public static LoginResponse XuLyDangNhap(string username, string password, string deviceId, string deviceName)
         {
             LoginResponse res = new LoginResponse();
             ConnectServer db = new ConnectServer();
@@ -108,7 +108,6 @@ namespace VTT
 
                     if (!isPasswordValid)
                     {
-                        // Ghi log đăng nhập thất bại để phục vụ đếm số lần sai (2 tầng khóa)
                         var logPars = new Dictionary<string, object>
                         {
                             { "@TenDangNhap", username },
@@ -119,18 +118,46 @@ namespace VTT
                         res.Success = false;
                         res.Message = "Tên đăng nhập hoặc mật khẩu không chính xác!";
                         return res;
-                    }else{
-                        var logPars = new Dictionary<string, object>
+                    }
+
+                    // --- KIỂM TRA GIỚI HẠN THIẾT BỊ (tối đa 3 thiết bị đang hoạt động) ---
+                    var thietBiPars = new Dictionary<string, object>
+                    {
+                        { "@TaiKhoanID", taiKhoanId },
+                        { "@DeviceID", string.IsNullOrEmpty(deviceId) ? "unknown_" + Guid.NewGuid().ToString("N") : deviceId },
+                        { "@TenThietBi", string.IsNullOrEmpty(deviceName) ? "Thiết bị không rõ" : deviceName },
+                        { "@IPAddress", clientIP }
+                    };
+                    DataSet dsThietBi = db.ExecuteDatasetStoredProcedure("sp_v2_ThietBi_KiemTraDangNhap", thietBiPars);
+
+                    bool choPhepThietBi = dsThietBi.Tables.Count > 0 && dsThietBi.Tables[0].Rows.Count > 0
+                                        && Convert.ToInt32(dsThietBi.Tables[0].Rows[0]["ChoPhep"]) == 1;
+
+                    if (!choPhepThietBi)
+                    {
+                        string thietBiMessage = dsThietBi.Tables[0].Rows[0]["Message"].ToString();
+
+                        // Lấy danh sách 3 thiết bị đang hoạt động để trả về cho client chọn đăng xuất bớt
+                        var listPars = new Dictionary<string, object> { { "@TaiKhoanID", taiKhoanId } };
+                        DataSet dsList = db.ExecuteDatasetStoredProcedure("sp_v2_ThietBi_GetList", listPars);
+
+                        var thietBiList = new List<object>();
+                        foreach (DataRow tbRow in dsList.Tables[0].Rows)
                         {
-                            { "@TenDangNhap", username },
-                            { "@IPAddress", clientIP },
-                            { "@GhiChu", "Tài khoản không tồn tại" }
-                        };
-                        db.ExecuteDatasetStoredProcedure("sp_v2_GhiLogDangNhapThatBai", logPars);
+                            thietBiList.Add(new
+                            {
+                                ThietBiID = tbRow["ThietBiID"],
+                                TenThietBi = tbRow["TenThietBi"].ToString(),
+                                LanHoatDongCuoiText = Convert.ToDateTime(tbRow["LanHoatDongCuoi"]).ToString("dd/MM/yyyy HH:mm")
+                            });
+                        }
 
                         res.Success = false;
-                        res.Message = "Tai khoản chưa kich hoạt!!";
+                        res.Message = thietBiMessage;
+                        res.ThietBiList = thietBiList;
+                        return res;
                     }
+                    // --- HẾT KIỂM TRA THIẾT BỊ ---
 
                     string email = row["Email"] != DBNull.Value ? row["Email"].ToString() : "";
                     string hoTen = row["HoTen"] != DBNull.Value ? row["HoTen"].ToString() : username;
@@ -161,7 +188,6 @@ namespace VTT
                         return res;
                     }
 
-                    // Lưu Session TẠM THỜI (theo đúng tên cột của schema v2)
                     HttpContext.Current.Session["Pending_TaiKhoanID"] = taiKhoanId;
                     HttpContext.Current.Session["Pending_TenDangNhap"] = row["TenDangNhap"];
                     HttpContext.Current.Session["Pending_NhanVienID"] = nhanVienId;
@@ -171,6 +197,7 @@ namespace VTT
                     HttpContext.Current.Session["Pending_PhongBanID"] = row["PhongBanChinhThucID"];
                     HttpContext.Current.Session["Pending_ChiNhanhID"] = row["ChiNhanhID"];
                     HttpContext.Current.Session["Pending_ChucVuID"] = row["ChucVuChinhThucID"];
+                    HttpContext.Current.Session["Pending_DeviceID"] = deviceId;
 
                     res.Success = true;
                     res.Message = "Mã OTP đã được gửi về Email của bạn!";
@@ -187,6 +214,50 @@ namespace VTT
                 System.Diagnostics.Trace.WriteLine("Lỗi trong XuLyDangNhap WebMethod: " + ex.ToString());
                 res.Success = false;
                 res.Message = "Đã xảy ra lỗi hệ thống: " + ex.Message;
+            }
+
+            return res;
+        }
+
+        /// <summary>
+        /// Cho phép người dùng đăng xuất 1 thiết bị cũ ngay tại màn hình bị chặn (chưa cần đăng nhập lại từ đầu),
+        /// rồi client tự động gọi lại XuLyDangNhap sau khi thu hồi thành công.
+        /// </summary>
+        [WebMethod(EnableSession = true)]
+        public static LoginResponse ThuHoiThietBiTruocDangNhap(long thietBiId, string username)
+        {
+            LoginResponse res = new LoginResponse();
+            ConnectServer db = new ConnectServer();
+
+            try
+            {
+                // Tra TaiKhoanID từ Username để đảm bảo chỉ thu hồi đúng thiết bị của chính tài khoản đang thử đăng nhập
+                var lookupPars = new Dictionary<string, object> { { "@TenDangNhap", username }, { "@IPAddress", GetClientIP() } };
+                DataSet dsLookup = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_DangNhap", lookupPars);
+
+                if (dsLookup.Tables.Count == 0 || dsLookup.Tables[0].Rows.Count == 0)
+                {
+                    res.Success = false;
+                    res.Message = "Không xác định được tài khoản!";
+                    return res;
+                }
+
+                long taiKhoanId = Convert.ToInt64(dsLookup.Tables[0].Rows[0]["TaiKhoanID"]);
+
+                var pars = new Dictionary<string, object>
+                {
+                    { "@ThietBiID", thietBiId },
+                    { "@TaiKhoanID", taiKhoanId }
+                };
+                db.ExecuteDatasetStoredProcedure("sp_v2_ThietBi_ThuHoi", pars);
+
+                res.Success = true;
+                res.Message = "Đã đăng xuất thiết bị cũ.";
+            }
+            catch (Exception ex)
+            {
+                res.Success = false;
+                res.Message = "Lỗi: " + ex.Message;
             }
 
             return res;

@@ -7,7 +7,6 @@ using log4net;
 
 namespace VTT.DanhMuc
 {
-    // Kế thừa BasePage để tự động kiểm tra Login khi người dùng load trang
     public partial class phong_ban : BasePage
     {
         private static readonly ILog log = LogManager.GetLogger(typeof(phong_ban));
@@ -16,47 +15,127 @@ namespace VTT.DanhMuc
         {
         }
 
-        [WebMethod]
-        public static object GetList(long congTyId, string keyword, string trangThai)
+        [WebMethod(EnableSession = true)]
+        public static object GetPermission()
         {
-            // Kiểm tra Authentication trước khi thực thi
             if (!IsAuthenticated())
-            {
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            bool canThem = CheckPermission("PHONGBAN", "THEM", GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            string myScope = GetPermissionScope("PHONGBAN", "XEM");
+
+            return new { success = true, data = new { canThem = canThem, scope = myScope } };
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object GetChiNhanhOptions()
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_NhanVien_GetChiNhanhOptions", new Dictionary<string, object>());
+
+                List<object> list = new List<object>();
+                foreach (DataRow dr in ds.Tables[0].Rows)
+                {
+                    list.Add(new { ChiNhanhID = dr["ChiNhanhID"], TenChiNhanh = dr["TenChiNhanh"].ToString() });
+                }
+                return new { success = true, data = list };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi GetChiNhanhOptions: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object GetChaOptions(long excludeId)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                var pars = new Dictionary<string, object> { { "@ExcludeID", excludeId } };
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetChaOptions", pars);
+
+                List<object> list = new List<object>();
+                foreach (DataRow dr in ds.Tables[0].Rows)
+                {
+                    string tenHienThi = new string(' ', (Convert.ToInt32(dr["CapDo"]) - 1) * 3) + dr["TenPhongBan"].ToString();
+                    list.Add(new { PhongBanID = dr["PhongBanID"], TenPhongBan = tenHienThi });
+                }
+                return new { success = true, data = list };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi GetChaOptions: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object GetList(string keyword, object chiNhanhId, string trangThai)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            string myScope = GetPermissionScope("PHONGBAN", "XEM");
+            if (myScope == null)
+                return new { success = false, message = "Bạn không có quyền xem Cây tổ chức!" };
+
+            object effectiveChiNhanhId = chiNhanhId;
+            object effectivePhongBanId = null;
+
+            if (myScope == "PHONGBAN")
+            {
+                effectivePhongBanId = GetCurrentPhongBanId();
+                effectiveChiNhanhId = null;
+            }
+            else if (myScope == "CHINHANH")
+            {
+                effectiveChiNhanhId = GetCurrentChiNhanhId();
             }
 
-            log.Info($"DMPhongBan GetList called with congTyId: {congTyId}, keyword: {keyword}, trangThai: {trangThai}");
             try
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object>
                 {
-                    { "@CongTyID", congTyId },
-                    { "@Keyword", string.IsNullOrEmpty(keyword) ? DBNull.Value : (object)keyword.Trim() },
+                    { "@Keyword", string.IsNullOrEmpty(keyword) ? DBNull.Value : (object)keyword },
+                    { "@ChiNhanhID", effectiveChiNhanhId == null ? DBNull.Value : (object)Convert.ToInt32(effectiveChiNhanhId) },
+                    { "@PhongBanID", effectivePhongBanId == null ? DBNull.Value : (object)Convert.ToInt32(effectivePhongBanId) },
                     { "@TrangThai", string.IsNullOrEmpty(trangThai) ? DBNull.Value : (object)Convert.ToByte(trangThai) }
                 };
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMPhongBan_GetList", pars);
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetList", pars);
                 DataTable dt = ds.Tables[0];
 
                 List<object> list = new List<object>();
                 foreach (DataRow dr in dt.Rows)
                 {
+                    long rowPhongBanId = Convert.ToInt64(dr["PhongBanID"]);
+                    long rowChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+                    int capDo = Convert.ToInt32(dr["CapDo"]);
+
+                    bool canEditRow = CheckPermission("PHONGBAN", "SUA", rowPhongBanId, rowChiNhanhId);
+                    bool canDeleteRow = CheckPermission("PHONGBAN", "XOA", rowPhongBanId, rowChiNhanhId);
+
                     list.Add(new
                     {
-                        PhongBanID = dr["PhongBanID"],
-                        CongTyID = dr["CongTyID"],
+                        PhongBanID = rowPhongBanId,
                         MaPhongBan = dr["MaPhongBan"].ToString(),
-                        TenPhongBan = dr["TenPhongBan"].ToString(),
-                        PhongBanChaID = dr["PhongBanChaID"] != DBNull.Value ? dr["PhongBanChaID"] : null,
-                        TenPhongBanCha = dr["TenPhongBanCha"] != DBNull.Value ? dr["TenPhongBanCha"].ToString() : "",
-                        CapDo = dr["CapDo"] != DBNull.Value ? Convert.ToInt32(dr["CapDo"]) : 1,
-                        DuongDan = dr["DuongDan"] != DBNull.Value ? dr["DuongDan"].ToString() : "",
-                        TruongPhongID = dr["TruongPhongID"] != DBNull.Value ? dr["TruongPhongID"] : null,
-                        TenTruongPhong = dr["TenTruongPhong"] != DBNull.Value ? dr["TenTruongPhong"].ToString() : "",
-                        ThuTu = dr["ThuTu"] != DBNull.Value ? Convert.ToInt32(dr["ThuTu"]) : 0,
+                        TenPhongBan = new string(' ', (capDo - 1) * 3) + (capDo > 1 ? "↳ " : "") + dr["TenPhongBan"].ToString(),
+                        TenChiNhanh = dr["TenChiNhanh"] == DBNull.Value ? "Trực thuộc Tổng công ty" : dr["TenChiNhanh"].ToString(),
+                        CapDo = capDo,
                         TrangThai = Convert.ToByte(dr["TrangThai"]),
-                        NgayTaoText = dr["NgayTao"] != DBNull.Value ? Convert.ToDateTime(dr["NgayTao"]).ToString("dd/MM/yyyy HH:mm") : ""
+                        CanEditRow = canEditRow,
+                        CanDeleteRow = canDeleteRow
                     });
                 }
 
@@ -64,60 +143,69 @@ namespace VTT.DanhMuc
             }
             catch (Exception ex)
             {
-                log.Error("Lỗi DMPhongBan GetList: " + ex.Message, ex);
+                log.Error("Lỗi GetList: " + ex.Message, ex);
                 return new { success = false, message = ex.Message };
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetById(long id)
         {
             if (!IsAuthenticated())
-            {
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-            }
 
-            log.Info($"DMPhongBan GetById called with id: {id}");
             try
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object> { { "@PhongBanID", id } };
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetById", pars);
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMPhongBan_GetById", pars);
-                if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+                if (ds.Tables[0].Rows.Count > 0)
                 {
                     DataRow dr = ds.Tables[0].Rows[0];
                     var data = new
                     {
                         PhongBanID = dr["PhongBanID"],
-                        CongTyID = dr["CongTyID"],
+                        ChiNhanhID = dr["ChiNhanhID"] == DBNull.Value ? (object)null : dr["ChiNhanhID"],
+                        PhongBanChaID = dr["PhongBanChaID"] == DBNull.Value ? (object)null : dr["PhongBanChaID"],
                         MaPhongBan = dr["MaPhongBan"].ToString(),
                         TenPhongBan = dr["TenPhongBan"].ToString(),
-                        PhongBanChaID = dr["PhongBanChaID"] != DBNull.Value ? dr["PhongBanChaID"] : null,
-                        TruongPhongID = dr["TruongPhongID"] != DBNull.Value ? dr["TruongPhongID"] : null,
-                        ThuTu = dr["ThuTu"] != DBNull.Value ? Convert.ToInt32(dr["ThuTu"]) : 0,
-                        TrangThai = Convert.ToByte(dr["TrangThai"])
+                        ThuTu = dr["ThuTu"],
+                        TrangThai = dr["TrangThai"]
                     };
                     return new { success = true, data = data };
                 }
-                return new { success = false, message = "Không tìm thấy phòng ban." };
+                return new { success = false, message = "Không tìm thấy bản ghi." };
             }
             catch (Exception ex)
             {
-                log.Error("Lỗi DMPhongBan GetById: " + ex.Message, ex);
+                log.Error("Lỗi GetById: " + ex.Message, ex);
                 return new { success = false, message = ex.Message };
             }
         }
 
-        /*[WebMethod]
-        public static object SaveData(long phongBanId, long congTyId, string maPhongBan, string tenPhongBan, long? phongBanChaId, long? truongPhongId, int thuTu, byte trangThai)
+        [WebMethod(EnableSession = true)]
+        public static object SaveData(long phongBanId, object chiNhanhId, object phongBanChaId, string maPhongBan, string tenPhongBan, int thuTu, byte trangThai)
         {
             if (!IsAuthenticated())
-            {
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            long congTyId = GetCurrentCongTyId();
+            if (congTyId == 0)
+                return new { success = false, message = "Không xác định được Công ty của tài khoản. Vui lòng đăng nhập lại!" };
+
+            long targetChiNhanhId = chiNhanhId == null ? 0 : Convert.ToInt64(chiNhanhId);
+            string maChucNang = phongBanId == 0 ? "THEM" : "SUA";
+
+            // Với Sửa, target phải theo đúng phòng ban đang sửa; với Thêm mới, target theo Chi nhánh vừa chọn
+            long targetPhongBanId = phongBanId == 0 ? 0 : phongBanId;
+            if (!CheckPermission("PHONGBAN", maChucNang, targetPhongBanId != 0 ? targetPhongBanId : GetCurrentPhongBanId(), targetChiNhanhId))
+            {
+                string tenChucNang = phongBanId == 0 ? "thêm mới" : "sửa";
+                return new { success = false, message = $"Bạn không có quyền {tenChucNang} đơn vị tổ chức này!" };
             }
 
-            log.Info($"DMPhongBan SaveData called: phongBanId={phongBanId}, congTyId={congTyId}, maPhongBan={maPhongBan}, tenPhongBan={tenPhongBan}, phongBanChaId={phongBanChaId}, truongPhongId={truongPhongId}");
+            log.Info($"SaveData called with phongBanId: {phongBanId}, maPhongBan: {maPhongBan}, tenPhongBan: {tenPhongBan}");
             try
             {
                 ConnectServer db = new ConnectServer();
@@ -125,155 +213,53 @@ namespace VTT.DanhMuc
                 {
                     { "@PhongBanID", phongBanId },
                     { "@CongTyID", congTyId },
+                    { "@ChiNhanhID", chiNhanhId == null ? DBNull.Value : (object)Convert.ToInt32(chiNhanhId) },
+                    { "@PhongBanChaID", phongBanChaId == null ? DBNull.Value : (object)Convert.ToInt32(phongBanChaId) },
                     { "@MaPhongBan", maPhongBan.Trim() },
                     { "@TenPhongBan", tenPhongBan.Trim() },
-                    { "@PhongBanChaID", (phongBanChaId.HasValue && phongBanChaId.Value > 0) ? (object)phongBanChaId.Value : DBNull.Value },
-                    { "@TruongPhongID", (truongPhongId.HasValue && truongPhongId.Value > 0) ? (object)truongPhongId.Value : DBNull.Value },
                     { "@ThuTu", thuTu },
                     { "@TrangThai", trangThai }
                 };
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMPhongBan_Save", pars);
-
-                // Nếu Proc trả về bảng thông báo kết quả (ResponseCode, ResponseMessage)
-                if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
-                {
-                    DataRow dr = ds.Tables[0].Rows[0];
-                    int responseCode = Convert.ToInt32(dr["ResponseCode"]);
-                    string responseMsg = dr["ResponseMessage"].ToString();
-
-                    return new { success = (responseCode == 1), message = responseMsg };
-                }
-
+                db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_Save", pars);
                 return new { success = true, message = phongBanId == 0 ? "Thêm mới thành công!" : "Cập nhật thành công!" };
             }
             catch (Exception ex)
             {
-                log.Error("Lỗi DMPhongBan SaveData: " + ex.Message, ex);
+                log.Error("Lỗi SaveData: " + ex.Message, ex);
                 return new { success = false, message = ex.Message };
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object DeleteData(long id)
         {
             if (!IsAuthenticated())
-            {
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-            }
 
-            log.Info($"DMPhongBan DeleteData called with id: {id}");
             try
             {
                 ConnectServer db = new ConnectServer();
+                var lookupPars = new Dictionary<string, object> { { "@PhongBanID", id } };
+                DataSet dsLookup = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetChiNhanhID", lookupPars);
+
+                long targetChiNhanhId = 0;
+                if (dsLookup.Tables.Count > 0 && dsLookup.Tables[0].Rows.Count > 0 && dsLookup.Tables[0].Rows[0]["ChiNhanhID"] != DBNull.Value)
+                {
+                    targetChiNhanhId = Convert.ToInt64(dsLookup.Tables[0].Rows[0]["ChiNhanhID"]);
+                }
+
+                if (!CheckPermission("PHONGBAN", "XOA", id, targetChiNhanhId))
+                    return new { success = false, message = "Bạn không có quyền xóa đơn vị tổ chức này!" };
+
                 var pars = new Dictionary<string, object> { { "@PhongBanID", id } };
+                db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_Delete", pars);
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMPhongBan_Delete", pars);
-
-                if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
-                {
-                    DataRow dr = ds.Tables[0].Rows[0];
-                    int responseCode = Convert.ToInt32(dr["ResponseCode"]);
-                    string responseMsg = dr["ResponseMessage"].ToString();
-
-                    return new { success = (responseCode == 1), message = responseMsg };
-                }
-
-                return new { success = true, message = "Xóa phòng ban thành công!" };
+                return new { success = true, message = "Xóa thành công!" };
             }
             catch (Exception ex)
             {
-                log.Error("Lỗi DMPhongBan DeleteData: " + ex.Message, ex);
-                return new { success = false, message = ex.Message };
-            }
-        }*/
-// ham mới
-        [WebMethod]
-        public static object SaveData(long phongBanId, long congTyId, string maPhongBan, string tenPhongBan, long? phongBanChaId, long? truongPhongId, int thuTu, byte trangThai)
-        {
-            if (!IsAuthenticated())
-            {
-                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-            }
-
-            // --- KIỂM TRA PHÂN QUYỀN THEO PHÒNG BAN ---
-            // phongBanId = 0 (tạo mới) chỉ Admin/IT được phép; sửa phòng ban đã tồn tại thì đúng phòng ban mình mới được sửa
-            if (!CanEdit(phongBanId))
-            {
-                return new { success = false, message = "Bạn không có quyền thêm/sửa Phòng ban này!" };
-            }
-            // --- HẾT KIỂM TRA ---
-
-            log.Info($"DMPhongBan SaveData called: phongBanId={phongBanId}, congTyId={congTyId}, maPhongBan={maPhongBan}, tenPhongBan={tenPhongBan}, phongBanChaId={phongBanChaId}, truongPhongId={truongPhongId}");
-            try
-            {
-                ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object>
-                {
-                    { "@PhongBanID", phongBanId },
-                    { "@CongTyID", congTyId },
-                    { "@MaPhongBan", maPhongBan.Trim() },
-                    { "@TenPhongBan", tenPhongBan.Trim() },
-                    { "@PhongBanChaID", (phongBanChaId.HasValue && phongBanChaId.Value > 0) ? (object)phongBanChaId.Value : DBNull.Value },
-                    { "@TruongPhongID", (truongPhongId.HasValue && truongPhongId.Value > 0) ? (object)truongPhongId.Value : DBNull.Value },
-                    { "@ThuTu", thuTu },
-                    { "@TrangThai", trangThai }
-                };
-
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMPhongBan_Save", pars);
-
-                if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
-                {
-                    DataRow dr = ds.Tables[0].Rows[0];
-                    int responseCode = Convert.ToInt32(dr["ResponseCode"]);
-                    string responseMsg = dr["ResponseMessage"].ToString();
-                    return new { success = (responseCode == 1), message = responseMsg };
-                }
-
-                return new { success = true, message = phongBanId == 0 ? "Thêm mới thành công!" : "Cập nhật thành công!" };
-            }
-            catch (Exception ex)
-            {
-                log.Error("Lỗi DMPhongBan SaveData: " + ex.Message, ex);
-                return new { success = false, message = ex.Message };
-            }
-        }
-        [WebMethod]
-        public static object DeleteData(long id)
-        {
-            if (!IsAuthenticated())
-            {
-                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-            }
-
-            // --- KIỂM TRA PHÂN QUYỀN THEO PHÒNG BAN ---
-            if (!CanEdit(id))
-            {
-                return new { success = false, message = "Bạn không có quyền xóa Phòng ban này!" };
-            }
-            // --- HẾT KIỂM TRA ---
-
-            log.Info($"DMPhongBan DeleteData called with id: {id}");
-            try
-            {
-                ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object> { { "@PhongBanID", id } };
-
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_chinh_DMPhongBan_Delete", pars);
-
-                if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
-                {
-                    DataRow dr = ds.Tables[0].Rows[0];
-                    int responseCode = Convert.ToInt32(dr["ResponseCode"]);
-                    string responseMsg = dr["ResponseMessage"].ToString();
-                    return new { success = (responseCode == 1), message = responseMsg };
-                }
-
-                return new { success = true, message = "Xóa phòng ban thành công!" };
-            }
-            catch (Exception ex)
-            {
-                log.Error("Lỗi DMPhongBan DeleteData: " + ex.Message, ex);
+                log.Error("Lỗi DeleteData: " + ex.Message, ex);
                 return new { success = false, message = ex.Message };
             }
         }

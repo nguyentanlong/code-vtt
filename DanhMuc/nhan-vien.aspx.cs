@@ -49,10 +49,13 @@ namespace VTT.DanhMuc
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-
-            bool canXem = CheckPermission("NHANVIEN", "XEM", GetCurrentPhongBanId(), GetCurrentChiNhanhId());
-            bool canThem = CheckPermission("NHANVIEN", "THEM", GetCurrentPhongBanId(), GetCurrentChiNhanhId());
-            string myScope = GetPermissionScope("NHANVIEN", "XEM"); // "CONGTY" / "CHINHANH" / "PHONGBAN" / null
+            // goi từ App_Code
+            string module = AppConstants.Position.Emp;
+            string actionXem = AppConstants.Actions.Ro;
+            string actionThem = AppConstants.Actions.Io;
+            bool canXem = CheckPermission(module, actionXem, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            bool canThem = CheckPermission(module, actionThem, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            string myScope = GetPermissionScope(module, actionXem); // "CONGTY" / "CHINHANH" / "PHONGBAN" / null
 
             return new { success = true, data = new { canXem = canXem, canThem = canThem, scope = myScope } };
         }

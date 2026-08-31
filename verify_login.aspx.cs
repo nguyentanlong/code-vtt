@@ -70,6 +70,7 @@ namespace VTT
                     HttpContext.Current.Session["PhongBanID"] = HttpContext.Current.Session["Pending_PhongBanID"];
                     HttpContext.Current.Session["ChiNhanhID"] = HttpContext.Current.Session["Pending_ChiNhanhID"];
                     HttpContext.Current.Session["ChucVuID"] = HttpContext.Current.Session["Pending_ChucVuID"];
+                    HttpContext.Current.Session["DeviceID"] = HttpContext.Current.Session["Pending_DeviceID"];
 
                     // 2. Dọn dẹp toàn bộ Temp Session
                     HttpContext.Current.Session.Remove("Pending_TaiKhoanID");
@@ -81,6 +82,7 @@ namespace VTT
                     HttpContext.Current.Session.Remove("Pending_PhongBanID");
                     HttpContext.Current.Session.Remove("Pending_ChiNhanhID");
                     HttpContext.Current.Session.Remove("Pending_ChucVuID");
+                    HttpContext.Current.Session.Remove("Pending_DeviceID");
 
                     res.Success = true;
                     res.Message = "Xác thực thành công!";

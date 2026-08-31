@@ -20,6 +20,11 @@
                         placeholder="Tìm theo Mã hoặc Tên dự án..." onkeyup="if(event.keyCode===13) loadData();" />
                 </div>
                 <div class="filter-group">
+                    <select id="ddlSearchChiNhanh" class="form-control" onchange="onFilterChiNhanhChange()">
+                        <option value="">-- Tất cả chi nhánh --</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <select id="ddlSearchPhongBan" class="form-control" onchange="loadData()">
                         <option value="">-- Tất cả phòng ban --</option>
                     </select>
@@ -46,10 +51,9 @@
                             <th style="width: 130px;">Mã Dự án</th>
                             <th>Tên Dự án</th>
                             <th style="width: 150px;">Phòng ban</th>
-                            <th style="width: 150px;">Loại công trình</th>
                             <th style="width: 90px;">Tiến độ</th>
                             <th style="width: 120px;">Trạng thái</th>
-                            <th style="width: 160px; text-align: center;">Thao tác</th>
+                            <th style="width: 170px; text-align: center;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="tbodyDuAn"></tbody>
@@ -89,17 +93,24 @@
 
                     <div class="form-row">
                         <div class="form-group col-6">
-                            <label>Phòng ban <span class="text-danger">*</span></label>
-                            <select id="ddlPhongBan" class="form-control">
-                                <option value="">-- Chọn phòng ban --</option>
+                            <label>Chi nhánh</label>
+                            <select id="ddlFormChiNhanh" class="form-control" onchange="onFormChiNhanhChange()">
+                                <option value="">-- Trực thuộc Tổng công ty --</option>
                             </select>
                         </div>
                         <div class="form-group col-6">
-                            <label>Loại công trình</label>
-                            <select id="ddlLoaiCongTrinh" class="form-control">
-                                <option value="">-- Không chọn --</option>
+                            <label>Phòng ban <span class="text-danger">*</span></label>
+                            <select id="ddlFormPhongBan" class="form-control">
+                                <option value="">-- Chọn phòng ban --</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Loại công trình</label>
+                        <select id="ddlLoaiCongTrinh" class="form-control">
+                            <option value="">-- Không chọn --</option>
+                        </select>
                     </div>
 
                     <div class="form-row">
@@ -137,5 +148,6 @@
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+        <script src="../assets/js/ui-alert.js"></script>
         <script src="../assets/js/danh-muc/du-an.js?v=<% Response.Write(VTT.libs.libs.randomVersion()); %>"></script>
     </asp:Content>
