@@ -42,15 +42,27 @@ function loadPermission() {
     return callWebMethod("GetPermission", {}, function (res) {
         canThemPermission = res.data.canThem;
         document.getElementById("btnAddNew").style.display = canThemPermission ? "inline-flex" : "none";
-        // Chỉ Admin toàn công ty (scope = CONGTY) mới cần filter theo Chi nhánh.
-        // Các cấp thấp hơn (CHINHANH/PHONGBAN) đã bị giới hạn sẵn ở server, ẩn bớt filter cho gọn.
-        var scope = res.data.scope;
-        var chiNhanhFilterGroup = document.getElementById("ddlSearchChiNhanh").closest(".filter-group");
 
-        if (scope !== "CONGTY") {
-            chiNhanhFilterGroup.style.display = "none";
+        var scope = res.data.scope;
+        var chiNhanhGroup = document.getElementById("ddlSearchChiNhanh").closest(".filter-group");
+        var phongBanGroup = document.getElementById("ddlSearchPhongBan")
+            ? document.getElementById("ddlSearchPhongBan").closest(".filter-group")
+            : null; // phong-ban.aspx không có ddlSearchPhongBan riêng, chỉ nhan-vien/du-an mới có
+
+        if (scope === "CONGTY") {
+            // Admin: hiện cả 2, hoạt động cascade như cũ
+            chiNhanhGroup.style.display = "";
+            if (phongBanGroup) phongBanGroup.style.display = "";
+        } else if (scope === "CHINHANH") {
+            chiNhanhGroup.style.display = "none";
+            if (phongBanGroup) {
+                phongBanGroup.style.display = "";
+                loadPhongBanOptions(res.data.myChiNhanhId, "ddlSearchPhongBan", null);
+            }
         } else {
-            chiNhanhFilterGroup.style.display = "";
+            // PHONGBAN (Trưởng phòng/Phó phòng/Nhân viên): ẩn cả 2 filter, luôn chỉ thao tác đúng phòng mình
+            chiNhanhGroup.style.display = "none";
+            if (phongBanGroup) phongBanGroup.style.display = "none";
         }
     });
 }

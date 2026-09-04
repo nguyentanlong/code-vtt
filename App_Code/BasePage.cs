@@ -65,6 +65,9 @@ namespace VTT.libs
         public static long GetCurrentPhongBanId() => PermissionHelper.GetCurrentPhongBanId();
         public static long GetCurrentChiNhanhId() => PermissionHelper.GetCurrentChiNhanhId();
 
+        protected static bool EvaluateScope(string dataScope, long targetPhongBanId = 0, long targetChiNhanhId = 0, long? nguoiTaoId = null)
+            => PermissionHelper.EvaluateScope(dataScope, targetPhongBanId, targetChiNhanhId, nguoiTaoId);
+        
         protected static string GetPermissionScope(string maTrang, string maChucNang)
             => PermissionHelper.GetPermissionScope(maTrang, maChucNang);
 

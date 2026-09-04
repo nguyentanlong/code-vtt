@@ -102,6 +102,9 @@ namespace VTT.DanhMuc
                 effectiveChiNhanhId = GetCurrentChiNhanhId();
             }
 
+            string scopeSua = GetPermissionScope("PHONGBAN", "SUA");
+            string scopeXoa = GetPermissionScope("PHONGBAN", "XOA");
+
             try
             {
                 ConnectServer db = new ConnectServer();
@@ -123,8 +126,8 @@ namespace VTT.DanhMuc
                     long rowChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
                     int capDo = Convert.ToInt32(dr["CapDo"]);
 
-                    bool canEditRow = CheckPermission("PHONGBAN", "SUA", rowPhongBanId, rowChiNhanhId);
-                    bool canDeleteRow = CheckPermission("PHONGBAN", "XOA", rowPhongBanId, rowChiNhanhId);
+                    bool canEditRow = EvaluateScope(scopeSua, rowPhongBanId, rowChiNhanhId);
+                    bool canDeleteRow = EvaluateScope(scopeXoa, rowPhongBanId, rowChiNhanhId);
 
                     list.Add(new
                     {

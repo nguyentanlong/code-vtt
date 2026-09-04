@@ -32,6 +32,10 @@ namespace VTT.libs
             return 0;
         }
 
+        /// <summary>
+        /// Truy vấn DB đúng 1 lần để lấy DataScope tài khoản hiện tại được cấp cho 1 Chức năng trên 1 Trang.
+        /// Nên gọi hàm này 1 LẦN duy nhất (ví dụ trước vòng lặp GetList), không gọi lại cho từng bản ghi.
+        /// </summary>
         public static string GetPermissionScope(string maTrang, string maChucNang)
         {
             long taiKhoanId = GetCurrentUserId();
@@ -56,9 +60,12 @@ namespace VTT.libs
             return dr["DataScope"] == DBNull.Value ? null : dr["DataScope"].ToString();
         }
 
-        public static bool CheckPermission(string maTrang, string maChucNang, long targetPhongBanId = 0, long targetChiNhanhId = 0, long? nguoiTaoId = null)
+        /// <summary>
+        /// So khớp phạm vi (DataScope) đã lấy sẵn với 1 bản ghi cụ thể — KHÔNG chạm DB.
+        /// Dùng trong vòng lặp GetList sau khi đã gọi GetPermissionScope 1 lần ở ngoài vòng lặp.
+        /// </summary>
+        public static bool EvaluateScope(string dataScope, long targetPhongBanId = 0, long targetChiNhanhId = 0, long? nguoiTaoId = null)
         {
-            string dataScope = GetPermissionScope(maTrang, maChucNang);
             if (dataScope == null) return false;
 
             switch (dataScope)
@@ -77,8 +84,15 @@ namespace VTT.libs
         }
 
         /// <summary>
-        /// Trả về danh sách MaTrang mà tài khoản hiện tại có quyền Xem (dùng cho menu sidebar).
+        /// Kiểm tra quyền cho ĐÚNG 1 bản ghi (gọi DB 1 lần) — dùng cho SaveData/DeleteData (chỉ có 1 bản ghi liên quan).
+        /// KHÔNG dùng hàm này trong vòng lặp GetList — dùng GetPermissionScope + EvaluateScope thay thế.
         /// </summary>
+        public static bool CheckPermission(string maTrang, string maChucNang, long targetPhongBanId = 0, long targetChiNhanhId = 0, long? nguoiTaoId = null)
+        {
+            string dataScope = GetPermissionScope(maTrang, maChucNang);
+            return EvaluateScope(dataScope, targetPhongBanId, targetChiNhanhId, nguoiTaoId);
+        }
+
         public static List<string> GetVisibleTrangList()
         {
             var result = new List<string>();
@@ -99,6 +113,33 @@ namespace VTT.libs
                 }
             }
             return result;
+        }
+        public static bool IsAdminOwner()
+        {
+            long taiKhoanId = GetCurrentUserId();
+            if (taiKhoanId == 0) return false;
+
+            ConnectServer db = new ConnectServer();
+            var pars = new Dictionary<string, object> { { "@TaiKhoanID", taiKhoanId } };
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_KiemTraLaAdmin", pars);
+
+            if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+                return Convert.ToInt32(ds.Tables[0].Rows[0]["LaAdmin"]) == 1;
+            return false;
+        }
+
+        public static int GetCurrentCapBac()
+        {
+            long taiKhoanId = GetCurrentUserId();
+            if (taiKhoanId == 0) return 999; // Không xác định -> coi như cấp thấp nhất, an toàn
+
+            ConnectServer db = new ConnectServer();
+            var pars = new Dictionary<string, object> { { "@TaiKhoanID", taiKhoanId } };
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetCapBac", pars);
+
+            if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 && ds.Tables[0].Rows[0]["CapBac"] != DBNull.Value)
+                return Convert.ToInt32(ds.Tables[0].Rows[0]["CapBac"]);
+            return 999;
         }
     }
 }

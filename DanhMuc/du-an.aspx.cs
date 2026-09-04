@@ -99,7 +99,6 @@ namespace VTT.DanhMuc
             object effectiveChiNhanhId = chiNhanhId;
             object effectivePhongBanId = phongBanId;
 
-            // Với NHANVIEN, quyền XEM là PHONGBAN -> chỉ thấy đúng phòng ban mình, bất kể filter chọn gì
             if (myScope == "PHONGBAN")
             {
                 effectivePhongBanId = GetCurrentPhongBanId();
@@ -109,6 +108,9 @@ namespace VTT.DanhMuc
             {
                 effectiveChiNhanhId = GetCurrentChiNhanhId();
             }
+
+            string scopeSua = GetPermissionScope("DUAN", "SUA");
+            string scopeXoa = GetPermissionScope("DUAN", "XOA");
 
             try
             {
@@ -133,8 +135,8 @@ namespace VTT.DanhMuc
                     long rowChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
                     long? rowNguoiTaoId = dr["NguoiTaoID"] == DBNull.Value ? (long?)null : Convert.ToInt64(dr["NguoiTaoID"]);
 
-                    bool canEditRow = CheckPermission("DUAN", "SUA", rowPhongBanId, rowChiNhanhId, rowNguoiTaoId);
-                    bool canDeleteRow = CheckPermission("DUAN", "XOA", rowPhongBanId, rowChiNhanhId, rowNguoiTaoId);
+                    bool canEditRow = EvaluateScope(scopeSua, rowPhongBanId, rowChiNhanhId, rowNguoiTaoId);
+                    bool canDeleteRow = EvaluateScope(scopeXoa, rowPhongBanId, rowChiNhanhId, rowNguoiTaoId);
 
                     list.Add(new
                     {
@@ -200,9 +202,30 @@ namespace VTT.DanhMuc
             }
         }
 
+        private static void GhiLyDoNeuCan(string dataScope, long? nguoiTaoId, string hanhDong, long khoaChinh, string lyDo)
+        {
+            // Chỉ bắt buộc lý do khi phạm vi là PHONGBAN (Trưởng phòng/Phó phòng) VÀ không phải người tạo
+            // Admin (CONGTY)/CN_Admin (CHINHANH)/chính chủ (TU_TAO hoặc đúng NguoiTaoID) không cần lý do
+            bool khongPhaiNguoiTao = !nguoiTaoId.HasValue || nguoiTaoId.Value != GetCurrentUserId();
+
+            if (dataScope == "PHONGBAN" && khongPhaiNguoiTao && !string.IsNullOrEmpty(lyDo))
+            {
+                ConnectServer db = new ConnectServer();
+                var pars = new Dictionary<string, object>
+                {
+                    { "@TenBang", "DuAn" },
+                    { "@KhoaChinh", khoaChinh },
+                    { "@HanhDong", hanhDong },
+                    { "@NguoiThucHienID", GetCurrentUserId() },
+                    { "@LyDo", lyDo }
+                };
+                db.ExecuteDatasetStoredProcedure("sp_v2_GhiLyDoThayDoi", pars);
+            }
+        }
+
         [WebMethod(EnableSession = true)]
         public static object SaveData(long duAnId, long phongBanId, object loaiCongTrinhId, string maDuAn, string tenDuAn,
-                                       string chuDauTu, string diaDiem, string moTa, string ngayBatDau, string ngayKetThuc, byte trangThaiDuAn)
+                                    string chuDauTu, string diaDiem, string moTa, string ngayBatDau, string ngayKetThuc, byte trangThaiDuAn, string lyDo)
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
@@ -217,6 +240,7 @@ namespace VTT.DanhMuc
             long targetChiNhanhId = GetChiNhanhIdOfPhongBan(phongBanId);
             long? nguoiTaoId = null;
             string maChucNang;
+            string dataScope = null;
 
             if (duAnId == 0)
             {
@@ -225,7 +249,6 @@ namespace VTT.DanhMuc
             else
             {
                 maChucNang = "SUA";
-                // Tra người tạo bản ghi hiện có để kiểm tra đúng quyền TU_TAO
                 ConnectServer dbLookup = new ConnectServer();
                 var lookupPars = new Dictionary<string, object> { { "@DuAnID", duAnId } };
                 DataSet dsLookup = dbLookup.ExecuteDatasetStoredProcedure("sp_v2_DuAn_GetPhongBanChiNhanhID", lookupPars);
@@ -235,10 +258,19 @@ namespace VTT.DanhMuc
                 }
             }
 
+            dataScope = GetPermissionScope("DUAN", maChucNang);
+
             if (!CheckPermission("DUAN", maChucNang, phongBanId, targetChiNhanhId, nguoiTaoId))
             {
                 string tenChucNang = duAnId == 0 ? "thêm mới" : "sửa";
                 return new { success = false, message = $"Bạn không có quyền {tenChucNang} Dự án này!" };
+            }
+
+            // Kiểm tra bắt buộc Lý do TRƯỚC KHI lưu (chỉ áp dụng khi Sửa bản ghi không phải mình tạo, phạm vi PHONGBAN)
+            bool khongPhaiNguoiTao = duAnId != 0 && (!nguoiTaoId.HasValue || nguoiTaoId.Value != GetCurrentUserId());
+            if (duAnId != 0 && dataScope == "PHONGBAN" && khongPhaiNguoiTao && string.IsNullOrWhiteSpace(lyDo))
+            {
+                return new { success = false, message = "Vui lòng nhập Lý do vì bạn đang sửa Dự án không phải do mình tạo!", requireReason = true };
             }
 
             log.Info($"SaveData called with duAnId: {duAnId}, phongBanId: {phongBanId}, maDuAn: {maDuAn}, tenDuAn: {tenDuAn}");
@@ -259,10 +291,17 @@ namespace VTT.DanhMuc
                     { "@NgayBatDau", string.IsNullOrEmpty(ngayBatDau) ? DBNull.Value : (object)DateTime.Parse(ngayBatDau) },
                     { "@NgayKetThucDuKien", string.IsNullOrEmpty(ngayKetThuc) ? DBNull.Value : (object)DateTime.Parse(ngayKetThuc) },
                     { "@TrangThaiDuAn", trangThaiDuAn },
-                    { "@NguoiTaoID", duAnId == 0 ? (object)GetCurrentUserId() : DBNull.Value } // Chỉ gán khi tạo mới, không đổi khi sửa
+                    { "@NguoiTaoID", duAnId == 0 ? (object)GetCurrentUserId() : DBNull.Value }
                 };
 
                 db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_Save", pars);
+
+                // Ghi Lý do nếu có (chỉ khi Sửa bản ghi không phải mình tạo)
+                if (duAnId != 0)
+                {
+                    GhiLyDoNeuCan(dataScope, nguoiTaoId, "SUA", duAnId, lyDo);
+                }
+
                 return new { success = true, message = duAnId == 0 ? "Thêm mới thành công!" : "Cập nhật thành công!" };
             }
             catch (Exception ex)
@@ -273,7 +312,7 @@ namespace VTT.DanhMuc
         }
 
         [WebMethod(EnableSession = true)]
-        public static object DeleteData(long id)
+        public static object DeleteData(long id, string lyDo)
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
@@ -297,8 +336,18 @@ namespace VTT.DanhMuc
                 if (!CheckPermission("DUAN", "XOA", targetPhongBanId, targetChiNhanhId, nguoiTaoId))
                     return new { success = false, message = "Bạn không có quyền xóa Dự án này!" };
 
+                string dataScope = GetPermissionScope("DUAN", "XOA");
+                bool khongPhaiNguoiTao = !nguoiTaoId.HasValue || nguoiTaoId.Value != GetCurrentUserId();
+
+                if (dataScope == "PHONGBAN" && khongPhaiNguoiTao && string.IsNullOrWhiteSpace(lyDo))
+                {
+                    return new { success = false, message = "Vui lòng nhập Lý do vì bạn đang xóa Dự án không phải do mình tạo!", requireReason = true };
+                }
+
                 var pars = new Dictionary<string, object> { { "@DuAnID", id } };
                 db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_Delete", pars);
+
+                GhiLyDoNeuCan(dataScope, nguoiTaoId, "XOA", id, lyDo);
 
                 return new { success = true, message = "Xóa thành công!" };
             }

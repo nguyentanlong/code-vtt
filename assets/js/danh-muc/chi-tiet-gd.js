@@ -124,15 +124,6 @@ function loadData() {
     });
 }
 
-function parseAspNetDate(value) {
-    if (!value) return null;
-    if (typeof value === "string" && value.indexOf("/Date(") === 0) {
-        var timestamp = parseInt(value.substr(6));
-        return new Date(timestamp);
-    }
-    return new Date(value);
-}
-
 function openModal(id) {
     document.getElementById("hddDuAnGiaiDoanID").value = id;
 

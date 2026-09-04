@@ -2,17 +2,22 @@ using System;
 
 public static class AppConstants
 {
-    public static class Position
+    public static class Trang
     {
-        public const string Emp = "NHANVIEN";
-        public const string Depman = "KHACHHANG";
+        public const string NV = "NHANVIEN";
+        public const string PB = "PHONGBAN";
+        public const string DA = "DUAN";
+        // Thêm dần khi refactor các trang tiếp theo: GiaiDoan, QuyTrinh, BoPhan...
     }
 
-    public static class Actions
+    /// <summary>
+    /// Hằng số MaChucNang — khớp đúng cột ChucNang.MaChucNang đã seed trong DB.
+    /// </summary>
+    public static class ChucNang
     {
-        public const string Ro = "XEM";
-        public const string Io = "THEM";
-        public const string Uo = "SUA";
-        public const string Do = "XOA";
+        public const string R = "XEM";
+        public const string I = "THEM";
+        public const string U = "SUA";
+        public const string D = "XOA";
     }
 }

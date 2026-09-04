@@ -43,8 +43,26 @@ function loadPermission() {
         document.getElementById("btnAddNew").style.display = canThemPermission ? "inline-flex" : "none";
 
         var scope = res.data.scope;
-        var chiNhanhFilterGroup = document.getElementById("ddlSearchChiNhanh").closest(".filter-group");
-        chiNhanhFilterGroup.style.display = (scope === "CONGTY") ? "" : "none";
+        var chiNhanhGroup = document.getElementById("ddlSearchChiNhanh").closest(".filter-group");
+        var phongBanGroup = document.getElementById("ddlSearchPhongBan")
+            ? document.getElementById("ddlSearchPhongBan").closest(".filter-group")
+            : null; // phong-ban.aspx không có ddlSearchPhongBan riêng, chỉ nhan-vien/du-an mới có
+
+        if (scope === "CONGTY") {
+            // Admin: hiện cả 2, hoạt động cascade như cũ
+            chiNhanhGroup.style.display = "";
+            if (phongBanGroup) phongBanGroup.style.display = "";
+        } else if (scope === "CHINHANH") {
+            chiNhanhGroup.style.display = "none";
+            if (phongBanGroup) {
+                phongBanGroup.style.display = "";
+                loadPhongBanOptions(res.data.myChiNhanhId, "ddlSearchPhongBan", null);
+            }
+        } else {
+            // PHONGBAN (Trưởng phòng/Phó phòng/Nhân viên): ẩn cả 2 filter, luôn chỉ thao tác đúng phòng mình
+            chiNhanhGroup.style.display = "none";
+            if (phongBanGroup) phongBanGroup.style.display = "none";
+        }
     });
 }
 
@@ -121,7 +139,7 @@ function loadData() {
             return;
         }
 
-        res.data.forEach(function (item) {
+        res.data.forEach(function (item, index) {
             var st = trangThaiConfig[item.TrangThaiDuAn] || trangThaiConfig[0];
 
             var tenHienThi = escapeHtml(item.TenDuAn);
@@ -151,7 +169,7 @@ function loadData() {
 
             var tr = document.createElement("tr");
             tr.innerHTML = `
-                <td style="text-align:center;">-</td>
+                <td style="text-align:center;">${index + 1}</td>
                 <td><strong>${escapeHtml(item.MaDuAn)}</strong></td>
                 <td>${tenHienThi}</td>
                 <td>${escapeHtml(item.TenPhongBan || '')}</td>
@@ -195,8 +213,8 @@ function openModal(id) {
             document.getElementById("txtChuDauTu").value = d.ChuDauTu || "";
             document.getElementById("txtDiaDiem").value = d.DiaDiem || "";
             document.getElementById("txtMoTa").value = d.MoTa || "";
-            fpNgayBatDau.setDate(d.NgayBatDau ? new Date(d.NgayBatDau) : null, false);
-            fpNgayKetThuc.setDate(d.NgayKetThucDuKien ? new Date(d.NgayKetThucDuKien) : null, false);
+            fpNgayBatDau.setDate(parseAspNetDate(d.NgayBatDau), false);
+            fpNgayKetThuc.setDate(parseAspNetDate(d.NgayKetThucDuKien), false);
             document.getElementById("ddlTrangThai").value = d.TrangThaiDuAn;
             loadPhongBanOptions(d.ChiNhanhID, "ddlFormPhongBan", d.PhongBanID).then(function () {
                 document.getElementById("modalDuAn").style.display = "flex";
@@ -215,7 +233,7 @@ function toIsoDate(fp) {
     return selected.getFullYear() + "-" + String(selected.getMonth() + 1).padStart(2, "0") + "-" + String(selected.getDate()).padStart(2, "0");
 }
 
-function saveData() {
+function saveData(lyDo) {
     var id = parseInt(document.getElementById("hddDuAnID").value);
     var maDuAn = document.getElementById("txtMaDuAn").value.trim();
     var tenDuAn = document.getElementById("txtTenDuAn").value.trim();
@@ -237,23 +255,95 @@ function saveData() {
         moTa: document.getElementById("txtMoTa").value.trim(),
         ngayBatDau: toIsoDate(fpNgayBatDau),
         ngayKetThuc: toIsoDate(fpNgayKetThuc),
-        trangThaiDuAn: parseInt(document.getElementById("ddlTrangThai").value)
+        trangThaiDuAn: parseInt(document.getElementById("ddlTrangThai").value),
+        lyDo: lyDo || ""
     };
 
-    callWebMethod("SaveData", payload, function (res) {
-        showToast(res.message, "success");
-        closeModal();
-        loadData();
+    fetch("du-an.aspx/SaveData", {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify(payload)
+    })
+        .then(response => response.json())
+        .then(res => {
+            var result = res.d;
+            if (result.success) {
+                showToast(result.message, "success");
+                closeModal();
+                loadData();
+            } else if (result.requireReason) {
+                askReasonAndRetry(result.message, function (nhapLyDo) {
+                    saveData(nhapLyDo);
+                });
+            } else {
+                showToast(result.message, "error");
+            }
+        })
+        .catch(function () {
+            showToast("Lỗi kết nối máy chủ!", "error");
+        });
+}
+
+function deleteData(id, lyDo) {
+    showConfirmDialog("Bạn có chắc chắn muốn xóa Dự án này khỏi hệ thống?").then(function (ok) {
+        if (!ok) return;
+
+        fetch("du-an.aspx/DeleteData", {
+            method: "POST",
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+            body: JSON.stringify({ id: id, lyDo: lyDo || "" })
+        })
+            .then(response => response.json())
+            .then(res => {
+                var result = res.d;
+                if (result.success) {
+                    showToast(result.message, "success");
+                    loadData();
+                } else if (result.requireReason) {
+                    askReasonAndRetry(result.message, function (nhapLyDo) {
+                        deleteData(id, nhapLyDo);
+                    });
+                } else {
+                    showToast(result.message, "error");
+                }
+            })
+            .catch(function () {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            });
     });
 }
 
-function deleteData(id) {
-    showConfirmDialog("Bạn có chắc chắn muốn xóa Dự án này khỏi hệ thống?").then(function (ok) {
-        if (!ok) return;
-        callWebMethod("DeleteData", { id: id }, function (res) {
-            showToast(res.message, "success");
-            loadData();
-        });
+function askReasonAndRetry(message, onConfirm) {
+    var backdrop = document.createElement("div");
+    backdrop.className = "ui-dialog-backdrop";
+    backdrop.innerHTML = `
+        <div class="ui-dialog-box">
+            <div class="ui-dialog-icon warning">!</div>
+            <div class="ui-dialog-message">${message}</div>
+            <textarea id="txtLyDoInput" class="form-control" rows="3" placeholder="Nhập lý do..." style="margin-top:8px;"></textarea>
+            <div class="ui-dialog-actions" style="margin-top:14px;">
+                <button type="button" class="ui-dialog-btn ui-dialog-btn-secondary" id="btnHuyLyDo">Hủy bỏ</button>
+                <button type="button" class="ui-dialog-btn ui-dialog-btn-primary" id="btnXacNhanLyDo">Xác nhận</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(backdrop);
+    requestAnimationFrame(function () { backdrop.classList.add("show"); });
+
+    function close() {
+        backdrop.classList.remove("show");
+        setTimeout(function () { backdrop.remove(); }, 180);
+    }
+
+    backdrop.querySelector("#btnHuyLyDo").addEventListener("click", close);
+    backdrop.querySelector("#btnXacNhanLyDo").addEventListener("click", function () {
+        var lyDo = backdrop.querySelector("#txtLyDoInput").value.trim();
+        if (!lyDo) {
+            showToast("Vui lòng nhập Lý do!", "error");
+            return;
+        }
+        close();
+        onConfirm(lyDo);
     });
 }
 

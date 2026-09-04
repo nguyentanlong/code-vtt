@@ -50,12 +50,12 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
             // goi từ App_Code
-            string module = AppConstants.Position.Emp;
-            string actionXem = AppConstants.Actions.Ro;
-            string actionThem = AppConstants.Actions.Io;
-            bool canXem = CheckPermission(module, actionXem, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
-            bool canThem = CheckPermission(module, actionThem, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
-            string myScope = GetPermissionScope(module, actionXem); // "CONGTY" / "CHINHANH" / "PHONGBAN" / null
+            // string module = AppConstants.Trang.Emp;
+            // string actionXem = AppConstants.ChucNang.R;
+            // string actionThem = AppConstants.ChucNang.I;
+            bool canXem = CheckPermission(Trang.NV, ChucNang.R, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            bool canThem = CheckPermission(Trang.NV, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            string myScope = GetPermissionScope(Trang.NV, ChucNang.R); // "CONGTY" / "CHINHANH" / "PHONGBAN" / null
 
             return new { success = true, data = new { canXem = canXem, canThem = canThem, scope = myScope } };
         }
@@ -145,28 +145,26 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            // Lấy phạm vi thực sự được cấp cho chức năng Xem — KHÔNG dùng chính phòng ban bản thân để "tự cho qua" như trước
             string myScope = GetPermissionScope("NHANVIEN", "XEM");
             if (myScope == null)
                 return new { success = false, message = "Bạn không có quyền xem Danh sách Nhân viên!" };
 
-            // --- ÉP BUỘC phạm vi lọc theo DataScope, GHI ĐÈ lên lựa chọn filter của người dùng nếu cần ---
             object effectiveChiNhanhId = chiNhanhId;
             object effectivePhongBanId = phongBanId;
 
             if (myScope == "PHONGBAN")
             {
-                // Chỉ được xem đúng phòng ban của mình — bỏ qua mọi filter khác người dùng chọn
                 effectivePhongBanId = GetCurrentPhongBanId();
                 effectiveChiNhanhId = null;
             }
             else if (myScope == "CHINHANH")
             {
-                // Chỉ được xem trong đúng Chi nhánh của mình
                 effectiveChiNhanhId = GetCurrentChiNhanhId();
-                // Vẫn cho phép người dùng tự lọc thêm theo Phòng ban trong phạm vi Chi nhánh đó (giữ nguyên phongBanId họ chọn)
             }
-            // myScope == "CONGTY" -> giữ nguyên filter người dùng chọn, không ép gì thêm
+
+            // Lấy DataScope cho Sửa/Xóa ĐÚNG 1 LẦN trước vòng lặp (thay vì gọi CheckPermission cho từng dòng)
+            string scopeSua = GetPermissionScope("NHANVIEN", "SUA");
+            string scopeXoa = GetPermissionScope("NHANVIEN", "XOA");
 
             log.Info($"GetList called with keyword: {keyword}, myScope: {myScope}, effectiveChiNhanhId: {effectiveChiNhanhId}, effectivePhongBanId: {effectivePhongBanId}, trangThai: {trangThai}");
             try
@@ -189,8 +187,9 @@ namespace VTT.DanhMuc
                     long rowPhongBanId = dr["PhongBanChinhThucID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanChinhThucID"]);
                     long rowChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
 
-                    bool canEditRow = CheckPermission("NHANVIEN", "SUA", rowPhongBanId, rowChiNhanhId);
-                    bool canDeleteRow = CheckPermission("NHANVIEN", "XOA", rowPhongBanId, rowChiNhanhId);
+                    // So khớp thuần C#, không chạm DB
+                    bool canEditRow = EvaluateScope(scopeSua, rowPhongBanId, rowChiNhanhId);
+                    bool canDeleteRow = EvaluateScope(scopeXoa, rowPhongBanId, rowChiNhanhId);
 
                     list.Add(new
                     {
