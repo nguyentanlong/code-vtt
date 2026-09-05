@@ -146,3 +146,34 @@ function parseAspNetDate(value) {
     }
     return new Date(value);
 }
+/**
+ * Áp dụng logic ẩn/hiện filter Chi nhánh + Phòng ban dựa theo scope trả về từ GetPermission.
+ * Dùng chung cho mọi trang có 2 dropdown filter kiểu này (Phòng ban, Nhân viên, Dự án...).
+ *
+ * @param {string} scope - "CONGTY" / "CHINHANH" / "PHONGBAN" (lấy từ res.data.scope)
+ * @param {string} chiNhanhSelectId - id của <select> filter Chi nhánh
+ * @param {string|null} phongBanSelectId - id của <select> filter Phòng ban (null nếu trang không có)
+ * @param {number} myChiNhanhId - ChiNhanhID của tài khoản hiện tại
+ * @param {function|null} loadPhongBanCallback - hàm (chiNhanhId) => tự load lại options Phòng ban khi scope=CHINHANH
+ */
+function applyScopeFilterVisibility(scope, chiNhanhSelectId, phongBanSelectId, myChiNhanhId, loadPhongBanCallback) {
+    var chiNhanhEl = document.getElementById(chiNhanhSelectId);
+    var chiNhanhGroup = chiNhanhEl ? chiNhanhEl.closest(".filter-group") : null;
+
+    var phongBanEl = phongBanSelectId ? document.getElementById(phongBanSelectId) : null;
+    var phongBanGroup = phongBanEl ? phongBanEl.closest(".filter-group") : null;
+
+    if (scope === "CONGTY") {
+        if (chiNhanhGroup) chiNhanhGroup.style.display = "";
+        if (phongBanGroup) phongBanGroup.style.display = "";
+    } else if (scope === "CHINHANH") {
+        if (chiNhanhGroup) chiNhanhGroup.style.display = "none";
+        if (phongBanGroup) {
+            phongBanGroup.style.display = "";
+            if (loadPhongBanCallback) loadPhongBanCallback(myChiNhanhId);
+        }
+    } else {
+        if (chiNhanhGroup) chiNhanhGroup.style.display = "none";
+        if (phongBanGroup) phongBanGroup.style.display = "none";
+    }
+}

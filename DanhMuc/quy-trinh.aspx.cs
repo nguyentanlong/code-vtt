@@ -11,16 +11,7 @@ namespace VTT.DanhMuc
     {
         private static readonly ILog log = LogManager.GetLogger(typeof(quy_trinh));
 
-        protected void Page_Load(object sender, EventArgs e)
-        {
-        }
-
-        private static long GetCurrentCongTyID()
-        {
-            var val = System.Web.HttpContext.Current.Session["CongTyID"];
-            if (val == null) return 0;
-            return Convert.ToInt64(val);
-        }
+        protected void Page_Load(object sender, EventArgs e) { }
 
         [WebMethod(EnableSession = true)]
         public static object GetPermission()
@@ -28,8 +19,8 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            var scope = GetCurrentAccessScope();
-            return new { success = true, data = new { canEdit = scope.IsFullAccess } };
+            bool canEdit = CheckPermission(Trang.QT, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            return new { success = true, data = new { canEdit = canEdit } };
         }
 
         [WebMethod(EnableSession = true)]
@@ -38,10 +29,10 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            long congTyId = GetCurrentCongTyID();
-            if (congTyId == 0)
-                return new { success = false, message = "Không xác định được Công ty của tài khoản. Vui lòng đăng nhập lại!" };
+            if (GetPermissionScope(Trang.QT, ChucNang.R) == null)
+                return new { success = false, message = "Bạn không có quyền xem Danh mục Quy trình!" };
 
+            long congTyId = GetCurrentCongTyId();
             try
             {
                 ConnectServer db = new ConnectServer();
@@ -52,11 +43,9 @@ namespace VTT.DanhMuc
                     { "@TrangThai", string.IsNullOrEmpty(trangThai) ? DBNull.Value : (object)Convert.ToByte(trangThai) }
                 };
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_QuyTrinh_GetList", pars);
-                DataTable dt = ds.Tables[0];
-
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_QuyTrinh_GetList", pars);
                 List<object> list = new List<object>();
-                foreach (DataRow dr in dt.Rows)
+                foreach (DataRow dr in ds.Tables[0].Rows)
                 {
                     list.Add(new
                     {
@@ -68,7 +57,6 @@ namespace VTT.DanhMuc
                         TrangThai = Convert.ToByte(dr["TrangThai"])
                     });
                 }
-
                 return new { success = true, data = list };
             }
             catch (Exception ex)
@@ -88,7 +76,7 @@ namespace VTT.DanhMuc
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object> { { "@QuyTrinhID", id } };
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_QuyTrinh_GetById", pars);
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_QuyTrinh_GetById", pars);
 
                 if (ds.Tables[0].Rows.Count > 0)
                 {
@@ -118,16 +106,11 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            var scope = GetCurrentAccessScope();
-            if (!scope.IsFullAccess)
-            {
-                return new { success = false, message = "Bạn không có quyền thêm/sửa Quy trình! Chỉ Admin/IT được phép." };
-            }
+            string maChucNang = quyTrinhId == 0 ? ChucNang.I : ChucNang.U;
+            if (!CheckPermission(Trang.QT, maChucNang, GetCurrentPhongBanId(), GetCurrentChiNhanhId()))
+                return new { success = false, message = "Bạn không có quyền thêm/sửa Quy trình! Chỉ Admin được phép." };
 
-            long congTyId = GetCurrentCongTyID();
-            if (congTyId == 0)
-                return new { success = false, message = "Không xác định được Công ty của tài khoản. Vui lòng đăng nhập lại!" };
-
+            long congTyId = GetCurrentCongTyId();
             try
             {
                 ConnectServer db = new ConnectServer();
@@ -140,8 +123,7 @@ namespace VTT.DanhMuc
                     { "@LoaiDoiTuong", loaiDoiTuong },
                     { "@TrangThai", trangThai }
                 };
-
-                db.ExecuteDatasetStoredProcedure("sp_long_QuyTrinh_Save", pars);
+                db.ExecuteDatasetStoredProcedure("sp_v2_QuyTrinh_Save", pars);
                 return new { success = true, message = quyTrinhId == 0 ? "Thêm mới thành công!" : "Cập nhật thành công!" };
             }
             catch (Exception ex)
@@ -157,17 +139,14 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            var scope = GetCurrentAccessScope();
-            if (!scope.IsFullAccess)
-            {
-                return new { success = false, message = "Bạn không có quyền xóa Quy trình! Chỉ Admin/IT được phép." };
-            }
+            if (!CheckPermission(Trang.QT, ChucNang.D, GetCurrentPhongBanId(), GetCurrentChiNhanhId()))
+                return new { success = false, message = "Bạn không có quyền xóa Quy trình! Chỉ Admin được phép." };
 
             try
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object> { { "@QuyTrinhID", id } };
-                db.ExecuteDatasetStoredProcedure("sp_long_QuyTrinh_Delete", pars);
+                db.ExecuteDatasetStoredProcedure("sp_v2_QuyTrinh_Delete", pars);
                 return new { success = true, message = "Xóa thành công!" };
             }
             catch (Exception ex)

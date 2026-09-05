@@ -32,15 +32,10 @@ function callWebMethod(methodName, dataObj, successCallback) {
             if (result && result.success) {
                 successCallback(result);
             } else {
-                var errorMsg = result ? result.message : "Thao tác thất bại!";
-                alert("Lỗi: " + errorMsg);
-                if (errorMsg && (errorMsg.includes("đăng nhập") || errorMsg.includes("hết hạn"))) {
-                    var currentUrl = encodeURIComponent(window.location.href);
-                    window.location.href = "../Login.aspx?returnUrl=" + currentUrl;
-                }
+                showToast(result ? result.message : "Thao tác thất bại!", "error");
             }
         })
-        .catch(err => { console.error("AJAX Error:", err); alert("Lỗi kết nối máy chủ!"); });
+        .catch(function () { showToast("Lỗi kết nối máy chủ!", "error"); });
 }
 
 function loadPermission() {
@@ -51,9 +46,7 @@ function loadPermission() {
 }
 
 function loadVaiTroOptions() {
-    return callWebMethod("GetVaiTroOptions", {}, function (res) {
-        vaiTroOptions = res.data || [];
-    });
+    return callWebMethod("GetVaiTroOptions", {}, function (res) { vaiTroOptions = res.data || []; });
 }
 
 function buildVaiTroSelectHtml(selectedId) {
@@ -134,16 +127,11 @@ function buildEditRowHtml(item) {
     `;
 }
 
-function editRow(id) {
-    if (!canEditPermission) return;
-    editingId = id;
-    renderTable();
-}
+function editRow(id) { if (!canEditPermission) return; editingId = id; renderTable(); }
 
 function addNewRow() {
     if (!canEditPermission) return;
     editingId = 0;
-
     var tbody = document.getElementById("tbodyBuoc");
     var tr = document.createElement("tr");
     tr.setAttribute("data-id", "0");
@@ -151,10 +139,7 @@ function addNewRow() {
     tbody.appendChild(tr);
 }
 
-function cancelEdit() {
-    editingId = null;
-    renderTable();
-}
+function cancelEdit() { editingId = null; renderTable(); }
 
 function saveRow(id) {
     var row = document.querySelector('tr[data-id="' + id + '"]');
@@ -163,33 +148,25 @@ function saveRow(id) {
     var vaiTroId = row.querySelector(".edit-vaitro").value;
     var hanhDong = row.querySelector(".edit-hanhdong").value.trim();
 
-    if (!tenBuoc) { alert("Vui lòng nhập Tên bước!"); return; }
+    if (!tenBuoc) { showToast("Vui lòng nhập Tên bước!", "error"); return; }
 
     callWebMethod("SaveData", {
-        buocId: id,
-        quyTrinhId: currentQuyTrinhId,
-        tenBuoc: tenBuoc,
-        thuTu: thuTu,
-        vaiTroDuyetId: vaiTroId ? parseInt(vaiTroId) : null,
-        hanhDong: hanhDong
-    }, function (res) {
+        buocId: id, quyTrinhId: currentQuyTrinhId, tenBuoc: tenBuoc, thuTu: thuTu,
+        vaiTroDuyetId: vaiTroId ? parseInt(vaiTroId) : null, hanhDong: hanhDong
+    }, function () {
         editingId = null;
         loadData();
     });
 }
 
 function deleteData(id) {
-    if (confirm("Bạn có chắc chắn muốn xóa Bước này khỏi Quy trình?")) {
-        callWebMethod("DeleteData", { id: id }, function (res) {
-            loadData();
-        });
-    }
+    showConfirmDialog("Bạn có chắc chắn muốn xóa Bước này khỏi Quy trình?").then(function (ok) {
+        if (!ok) return;
+        callWebMethod("DeleteData", { id: id }, function () { loadData(); });
+    });
 }
 
-var ketQuaConfig = {
-    0: { text: "Từ chối", cssClass: "badge-danger" },
-    1: { text: "Đồng ý", cssClass: "badge-success" }
-};
+var ketQuaConfig = { 0: { text: "Từ chối", cssClass: "badge-danger" }, 1: { text: "Đồng ý", cssClass: "badge-success" } };
 
 function loadLichSu() {
     callWebMethod("GetLichSu", { quyTrinhId: currentQuyTrinhId }, function (res) {
@@ -203,7 +180,6 @@ function loadLichSu() {
 
         res.data.forEach(function (item) {
             var kq = item.KetQua !== null ? (ketQuaConfig[item.KetQua] || { text: "--", cssClass: "" }) : { text: "Đang chờ", cssClass: "" };
-
             var tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${escapeHtml(item.NgayXuLyText)}</td>
@@ -222,7 +198,4 @@ function escapeHtml(text) {
     if (!text) return "";
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
-
-function escapeAttr(text) {
-    return escapeHtml(text).replace(/`/g, "&#96;");
-}
+function escapeAttr(text) { return escapeHtml(text).replace(/`/g, "&#96;"); }

@@ -39,7 +39,7 @@ namespace VTT
             var visibleTrangList = PermissionHelper.GetVisibleTrangList();
             bool isAdmin = PermissionHelper.IsAdminOwner();
             // Có quyền quản lý sơ đồ tổ chức (Sửa Nhân viên) -> Trưởng phòng/CN_Admin/Admin; Phó phòng/Nhân viên = false
-            bool canManageOrgChart = PermissionHelper.GetPermissionScope("NHANVIEN", "SUA") != null;
+            bool canManageOrgChart = PermissionHelper.GetPermissionScope(Trang.NV, ChucNang.U) != null;
 
             return new
             {

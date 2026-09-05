@@ -16,15 +16,10 @@ function callWebMethod(methodName, dataObj, successCallback) {
             if (result && result.success) {
                 successCallback(result);
             } else {
-                var errorMsg = result ? result.message : "Thao tác thất bại!";
-                alert("Lỗi: " + errorMsg);
-                if (errorMsg && (errorMsg.includes("đăng nhập") || errorMsg.includes("hết hạn"))) {
-                    var currentUrl = encodeURIComponent(window.location.href);
-                    window.location.href = "../Login.aspx?returnUrl=" + currentUrl;
-                }
+                showToast(result ? result.message : "Thao tác thất bại!", "error");
             }
         })
-        .catch(err => { console.error("AJAX Error:", err); alert("Lỗi kết nối máy chủ!"); });
+        .catch(function () { showToast("Lỗi kết nối máy chủ!", "error"); });
 }
 
 function loadPermission() {
@@ -83,7 +78,7 @@ function loadData() {
 }
 
 function openModal(id) {
-    if (!canEditPermission) { alert("Bạn không có quyền thực hiện thao tác này!"); return; }
+    if (!canEditPermission) { showToast("Bạn không có quyền thực hiện thao tác này!", "error"); return; }
     document.getElementById("hddQuyTrinhID").value = id;
 
     if (id === 0) {
@@ -108,40 +103,37 @@ function openModal(id) {
     }
 }
 
-function closeModal() {
-    document.getElementById("modalQuyTrinh").style.display = "none";
-}
+function closeModal() { document.getElementById("modalQuyTrinh").style.display = "none"; }
 
 function saveData() {
     var id = parseInt(document.getElementById("hddQuyTrinhID").value);
     var maQuyTrinh = document.getElementById("txtMaQuyTrinh").value.trim();
     var tenQuyTrinh = document.getElementById("txtTenQuyTrinh").value.trim();
 
-    if (!maQuyTrinh) { alert("Vui lòng nhập Mã quy trình!"); return; }
-    if (!tenQuyTrinh) { alert("Vui lòng nhập Tên quy trình!"); return; }
+    if (!maQuyTrinh) { showToast("Vui lòng nhập Mã quy trình!", "error"); return; }
+    if (!tenQuyTrinh) { showToast("Vui lòng nhập Tên quy trình!", "error"); return; }
 
     var payload = {
-        quyTrinhId: id,
-        maQuyTrinh: maQuyTrinh,
-        tenQuyTrinh: tenQuyTrinh,
+        quyTrinhId: id, maQuyTrinh: maQuyTrinh, tenQuyTrinh: tenQuyTrinh,
         loaiDoiTuong: document.getElementById("ddlLoaiDoiTuong").value,
         trangThai: parseInt(document.getElementById("ddlTrangThai").value)
     };
 
     callWebMethod("SaveData", payload, function (res) {
-        alert(res.message);
+        showToast(res.message, "success");
         closeModal();
         loadData();
     });
 }
 
 function deleteData(id) {
-    if (confirm("Bạn có chắc chắn muốn xóa Quy trình này khỏi hệ thống?")) {
+    showConfirmDialog("Bạn có chắc chắn muốn xóa Quy trình này?").then(function (ok) {
+        if (!ok) return;
         callWebMethod("DeleteData", { id: id }, function (res) {
-            alert(res.message);
+            showToast(res.message, "success");
             loadData();
         });
-    }
+    });
 }
 
 function escapeHtml(text) {

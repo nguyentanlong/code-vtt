@@ -19,23 +19,21 @@ function callWebMethod(methodName, dataObj, successCallback) {
                 successCallback(result);
             } else {
                 var errorMsg = result ? result.message : "Thao tác thất bại!";
-                alert("Lỗi: " + errorMsg);
+                showToast(errorMsg, "error");
                 if (errorMsg && (errorMsg.includes("đăng nhập") || errorMsg.includes("hết hạn"))) {
                     var currentUrl = encodeURIComponent(window.location.href);
-                    window.location.href = "../Login.aspx?returnUrl=" + currentUrl;
+                    window.location.href = "../login.aspx?returnUrl=" + currentUrl;
                 }
             }
         })
-        .catch(err => {
-            console.error("AJAX Error:", err);
-            alert("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!");
+        .catch(function () {
+            showToast("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!", "error");
         });
 }
 
 function loadPermission() {
     return callWebMethod("GetPermission", {}, function (res) {
         canEditPermission = res.data.canEdit;
-        // Ẩn nút Thêm mới nếu không có quyền (chỉ Admin/IT mới thấy)
         document.getElementById("btnAddNew").style.display = canEditPermission ? "inline-flex" : "none";
     });
 }
@@ -53,7 +51,6 @@ function loadData() {
         }
 
         res.data.forEach(function (item, index) {
-            // Nút Sửa/Xóa chỉ hiện nếu có quyền; người không có quyền chỉ xem được danh sách
             var actionsHtml = canEditPermission
                 ? `
                     <button type="button" class="btn-icon text-edit" onclick="openModal(${item.TimeLineID})" title="Chỉnh sửa">
@@ -81,7 +78,7 @@ function loadData() {
 
 function openModal(id) {
     if (!canEditPermission) {
-        alert("Bạn không có quyền thực hiện thao tác này!");
+        showToast("Bạn không có quyền thực hiện thao tác này!", "error");
         return;
     }
 
@@ -118,8 +115,8 @@ function saveData() {
     var maGiaiDoan = document.getElementById("txtMaGiaiDoan").value.trim();
     var tenGiaiDoan = document.getElementById("txtTenGiaiDoan").value.trim();
 
-    if (!maGiaiDoan) { alert("Vui lòng nhập Mã giai đoạn!"); document.getElementById("txtMaGiaiDoan").focus(); return; }
-    if (!tenGiaiDoan) { alert("Vui lòng nhập Tên giai đoạn!"); document.getElementById("txtTenGiaiDoan").focus(); return; }
+    if (!maGiaiDoan) { showToast("Vui lòng nhập Mã giai đoạn!", "error"); return; }
+    if (!tenGiaiDoan) { showToast("Vui lòng nhập Tên giai đoạn!", "error"); return; }
 
     var payload = {
         timeLineId: id,
@@ -130,19 +127,20 @@ function saveData() {
     };
 
     callWebMethod("SaveData", payload, function (res) {
-        alert(res.message);
+        showToast(res.message, "success");
         closeModal();
         loadData();
     });
 }
 
 function deleteData(id) {
-    if (confirm("Bạn có chắc chắn muốn xóa Giai đoạn này khỏi hệ thống?")) {
+    showConfirmDialog("Bạn có chắc chắn muốn xóa Giai đoạn này khỏi hệ thống?").then(function (ok) {
+        if (!ok) return;
         callWebMethod("DeleteData", { id: id }, function (res) {
-            alert(res.message);
+            showToast(res.message, "success");
             loadData();
         });
-    }
+    });
 }
 
 function escapeHtml(text) {

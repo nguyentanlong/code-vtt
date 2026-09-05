@@ -11,16 +11,7 @@ namespace VTT.DanhMuc
     {
         private static readonly ILog log = LogManager.GetLogger(typeof(chi_tiet_quy_trinh));
 
-        protected void Page_Load(object sender, EventArgs e)
-        {
-        }
-
-        private static long GetCurrentCongTyID()
-        {
-            var val = System.Web.HttpContext.Current.Session["CongTyID"];
-            if (val == null) return 0;
-            return Convert.ToInt64(val);
-        }
+        protected void Page_Load(object sender, EventArgs e) { }
 
         [WebMethod(EnableSession = true)]
         public static object GetPermission()
@@ -28,8 +19,8 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            var scope = GetCurrentAccessScope();
-            return new { success = true, data = new { canEdit = scope.IsFullAccess } };
+            bool canEdit = CheckPermission(Trang.QT, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            return new { success = true, data = new { canEdit = canEdit } };
         }
 
         [WebMethod(EnableSession = true)]
@@ -38,18 +29,16 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            long congTyId = GetCurrentCongTyID();
+            long congTyId = GetCurrentCongTyId();
             try
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object> { { "@CongTyID", congTyId } };
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_BuocQuyTrinh_GetVaiTroOptions", pars);
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_BuocQuyTrinh_GetVaiTroOptions", pars);
 
                 List<object> list = new List<object>();
                 foreach (DataRow dr in ds.Tables[0].Rows)
-                {
                     list.Add(new { VaiTroID = dr["VaiTroID"], TenVaiTro = dr["TenVaiTro"].ToString() });
-                }
                 return new { success = true, data = list };
             }
             catch (Exception ex)
@@ -69,7 +58,7 @@ namespace VTT.DanhMuc
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object> { { "@QuyTrinhID", quyTrinhId } };
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_BuocQuyTrinh_GetList", pars);
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_BuocQuyTrinh_GetList", pars);
 
                 List<object> list = new List<object>();
                 foreach (DataRow dr in ds.Tables[0].Rows)
@@ -104,7 +93,7 @@ namespace VTT.DanhMuc
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object> { { "@QuyTrinhID", quyTrinhId } };
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_LichSuQuyTrinh_GetList", pars);
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_LichSuQuyTrinh_GetList", pars);
 
                 List<object> list = new List<object>();
                 foreach (DataRow dr in ds.Tables[0].Rows)
@@ -136,11 +125,8 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            var scope = GetCurrentAccessScope();
-            if (!scope.IsFullAccess)
-            {
-                return new { success = false, message = "Bạn không có quyền chỉnh sửa Bước Quy trình! Chỉ Admin/IT được phép." };
-            }
+            if (!CheckPermission(Trang.QT, ChucNang.U, GetCurrentPhongBanId(), GetCurrentChiNhanhId()))
+                return new { success = false, message = "Bạn không có quyền chỉnh sửa Bước Quy trình! Chỉ Admin được phép." };
 
             try
             {
@@ -154,8 +140,7 @@ namespace VTT.DanhMuc
                     { "@VaiTroDuyetID", vaiTroDuyetId == null ? DBNull.Value : (object)Convert.ToInt64(vaiTroDuyetId) },
                     { "@HanhDong", string.IsNullOrEmpty(hanhDong) ? DBNull.Value : (object)hanhDong.Trim() }
                 };
-
-                db.ExecuteDatasetStoredProcedure("sp_long_BuocQuyTrinh_Save", pars);
+                db.ExecuteDatasetStoredProcedure("sp_v2_BuocQuyTrinh_Save", pars);
                 return new { success = true, message = "Lưu Bước thành công!" };
             }
             catch (Exception ex)
@@ -171,17 +156,14 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            var scope = GetCurrentAccessScope();
-            if (!scope.IsFullAccess)
-            {
-                return new { success = false, message = "Bạn không có quyền xóa Bước Quy trình! Chỉ Admin/IT được phép." };
-            }
+            if (!CheckPermission(Trang.QT, ChucNang.D, GetCurrentPhongBanId(), GetCurrentChiNhanhId()))
+                return new { success = false, message = "Bạn không có quyền xóa Bước Quy trình! Chỉ Admin được phép." };
 
             try
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object> { { "@BuocID", id } };
-                db.ExecuteDatasetStoredProcedure("sp_long_BuocQuyTrinh_Delete", pars);
+                db.ExecuteDatasetStoredProcedure("sp_v2_BuocQuyTrinh_Delete", pars);
                 return new { success = true, message = "Xóa thành công!" };
             }
             catch (Exception ex)

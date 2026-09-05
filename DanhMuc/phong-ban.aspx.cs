@@ -21,10 +21,10 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            bool canThem = CheckPermission("PHONGBAN", "THEM", GetCurrentPhongBanId(), GetCurrentChiNhanhId());
-            string myScope = GetPermissionScope("PHONGBAN", "XEM");
+            bool canThem = CheckPermission(Trang.PB, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            string myScope = GetPermissionScope(Trang.PB, ChucNang.R);
 
-            return new { success = true, data = new { canThem = canThem, scope = myScope } };
+            return new { success = true, data = new { canThem = canThem, scope = myScope, myChiNhanhId = GetCurrentChiNhanhId() } };
         }
 
         [WebMethod(EnableSession = true)]
@@ -85,14 +85,14 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            string myScope = GetPermissionScope("PHONGBAN", "XEM");
+            string myScope = GetPermissionScope(Trang.PB, ChucNang.R);
             if (myScope == null)
                 return new { success = false, message = "Bạn không có quyền xem Cây tổ chức!" };
 
             object effectiveChiNhanhId = chiNhanhId;
             object effectivePhongBanId = null;
 
-            if (myScope == "PHONGBAN")
+            if (myScope == Trang.PB)
             {
                 effectivePhongBanId = GetCurrentPhongBanId();
                 effectiveChiNhanhId = null;
@@ -102,8 +102,8 @@ namespace VTT.DanhMuc
                 effectiveChiNhanhId = GetCurrentChiNhanhId();
             }
 
-            string scopeSua = GetPermissionScope("PHONGBAN", "SUA");
-            string scopeXoa = GetPermissionScope("PHONGBAN", "XOA");
+            string scopeSua = GetPermissionScope(Trang.PB, ChucNang.U);
+            string scopeXoa = GetPermissionScope(Trang.PB, ChucNang.D);
 
             try
             {
@@ -198,11 +198,11 @@ namespace VTT.DanhMuc
                 return new { success = false, message = "Không xác định được Công ty của tài khoản. Vui lòng đăng nhập lại!" };
 
             long targetChiNhanhId = chiNhanhId == null ? 0 : Convert.ToInt64(chiNhanhId);
-            string maChucNang = phongBanId == 0 ? "THEM" : "SUA";
+            string maChucNang = phongBanId == 0 ? ChucNang.I : ChucNang.U;
 
             // Với Sửa, target phải theo đúng phòng ban đang sửa; với Thêm mới, target theo Chi nhánh vừa chọn
             long targetPhongBanId = phongBanId == 0 ? 0 : phongBanId;
-            if (!CheckPermission("PHONGBAN", maChucNang, targetPhongBanId != 0 ? targetPhongBanId : GetCurrentPhongBanId(), targetChiNhanhId))
+            if (!CheckPermission(Trang.PB, maChucNang, targetPhongBanId != 0 ? targetPhongBanId : GetCurrentPhongBanId(), targetChiNhanhId))
             {
                 string tenChucNang = phongBanId == 0 ? "thêm mới" : "sửa";
                 return new { success = false, message = $"Bạn không có quyền {tenChucNang} đơn vị tổ chức này!" };
@@ -252,7 +252,7 @@ namespace VTT.DanhMuc
                     targetChiNhanhId = Convert.ToInt64(dsLookup.Tables[0].Rows[0]["ChiNhanhID"]);
                 }
 
-                if (!CheckPermission("PHONGBAN", "XOA", id, targetChiNhanhId))
+                if (!CheckPermission(Trang.PB, ChucNang.D, id, targetChiNhanhId))
                     return new { success = false, message = "Bạn không có quyền xóa đơn vị tổ chức này!" };
 
                 var pars = new Dictionary<string, object> { { "@PhongBanID", id } };

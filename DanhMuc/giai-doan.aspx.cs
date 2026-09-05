@@ -15,18 +15,14 @@ namespace VTT.DanhMuc
         {
         }
 
-        /// <summary>
-        /// Cho client biết tài khoản hiện tại có quyền Thêm/Sửa/Xóa hay chỉ được Xem.
-        /// Bảng DMTimeLine dùng chung toàn hệ thống, không theo Phòng ban -> chỉ Admin/IT được CRUD.
-        /// </summary>
         [WebMethod(EnableSession = true)]
         public static object GetPermission()
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            var scope = GetCurrentAccessScope();
-            return new { success = true, data = new { canEdit = scope.IsFullAccess } };
+            bool canEdit = CheckPermission(Trang.GD, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            return new { success = true, data = new { canEdit = canEdit } };
         }
 
         [WebMethod(EnableSession = true)]
@@ -34,6 +30,10 @@ namespace VTT.DanhMuc
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            string myScope = GetPermissionScope(Trang.GD, ChucNang.R);
+            if (myScope == null)
+                return new { success = false, message = "Bạn không có quyền xem Danh mục Giai đoạn!" };
 
             log.Info($"GetList called with keyword: {keyword}");
             try
@@ -44,7 +44,7 @@ namespace VTT.DanhMuc
                     { "@Keyword", string.IsNullOrEmpty(keyword) ? DBNull.Value : (object)keyword }
                 };
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_DMTimeLine_GetList", pars);
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_GiaiDoan_GetList", pars);
                 DataTable dt = ds.Tables[0];
 
                 List<object> list = new List<object>();
@@ -80,8 +80,8 @@ namespace VTT.DanhMuc
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object> { { "@TimeLineID", id } };
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_GiaiDoan_GetById", pars);
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_DMTimeLine_GetById", pars);
                 if (ds.Tables[0].Rows.Count > 0)
                 {
                     DataRow dr = ds.Tables[0].Rows[0];
@@ -110,13 +110,11 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            // --- KIỂM TRA PHÂN QUYỀN: chỉ Admin/IT được Thêm/Sửa ---
-            var scope = GetCurrentAccessScope();
-            if (!scope.IsFullAccess)
+            string maChucNang = timeLineId == 0 ? ChucNang.I : ChucNang.U;
+            if (!CheckPermission(Trang.GD, maChucNang, GetCurrentPhongBanId(), GetCurrentChiNhanhId()))
             {
-                return new { success = false, message = "Bạn không có quyền thêm/sửa Danh mục Giai đoạn dự án! Chỉ Admin/IT được phép." };
+                return new { success = false, message = "Bạn không có quyền thêm/sửa Danh mục Giai đoạn! Chỉ Admin được phép." };
             }
-            // --- HẾT KIỂM TRA ---
 
             log.Info($"SaveData called with timeLineId: {timeLineId}, maGiaiDoan: {maGiaiDoan}, tenGiaiDoan: {tenGiaiDoan}");
             try
@@ -131,7 +129,7 @@ namespace VTT.DanhMuc
                     { "@MoTa", string.IsNullOrEmpty(moTa) ? DBNull.Value : (object)moTa.Trim() }
                 };
 
-                db.ExecuteDatasetStoredProcedure("sp_long_DMTimeLine_Save", pars);
+                db.ExecuteDatasetStoredProcedure("sp_v2_GiaiDoan_Save", pars);
                 return new { success = true, message = timeLineId == 0 ? "Thêm mới thành công!" : "Cập nhật thành công!" };
             }
             catch (Exception ex)
@@ -147,21 +145,17 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            // --- KIỂM TRA PHÂN QUYỀN: chỉ Admin/IT được Xóa ---
-            var scope = GetCurrentAccessScope();
-            if (!scope.IsFullAccess)
+            if (!CheckPermission(Trang.GD, ChucNang.D, GetCurrentPhongBanId(), GetCurrentChiNhanhId()))
             {
-                return new { success = false, message = "Bạn không có quyền xóa Danh mục Giai đoạn dự án! Chỉ Admin/IT được phép." };
+                return new { success = false, message = "Bạn không có quyền xóa Danh mục Giai đoạn! Chỉ Admin được phép." };
             }
-            // --- HẾT KIỂM TRA ---
 
             log.Info($"DeleteData called with id: {id}");
             try
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object> { { "@TimeLineID", id } };
-
-                db.ExecuteDatasetStoredProcedure("sp_long_DMTimeLine_Delete", pars);
+                db.ExecuteDatasetStoredProcedure("sp_v2_GiaiDoan_Delete", pars);
                 return new { success = true, message = "Xóa thành công!" };
             }
             catch (Exception ex)

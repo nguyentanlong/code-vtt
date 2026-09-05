@@ -93,6 +93,7 @@
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+        <script src="../assets/js/ui-alert.js"></script>
         <script
             src="../assets/js/danh-muc/chi-tiet-gd.js?v=<% Response.Write(VTT.libs.libs.randomVersion()); %>"></script>
     </asp:Content>

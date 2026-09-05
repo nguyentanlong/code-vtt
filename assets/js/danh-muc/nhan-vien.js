@@ -38,7 +38,7 @@ function callWebMethod(methodName, dataObj, successCallback) {
         });
 }
 
-function loadPermission() {
+/*function loadPermission() {
     return callWebMethod("GetPermission", {}, function (res) {
         canThemPermission = res.data.canThem;
         document.getElementById("btnAddNew").style.display = canThemPermission ? "inline-flex" : "none";
@@ -64,6 +64,16 @@ function loadPermission() {
             chiNhanhGroup.style.display = "none";
             if (phongBanGroup) phongBanGroup.style.display = "none";
         }
+    });
+}*/
+function loadPermission() {
+    return callWebMethod("GetPermission", {}, function (res) {
+        canThemPermission = res.data.canThem;
+        document.getElementById("btnAddNew").style.display = canThemPermission ? "inline-flex" : "none";
+
+        applyScopeFilterVisibility(res.data.scope, "ddlSearchChiNhanh", "ddlSearchPhongBan", res.data.myChiNhanhId, function (chiNhanhId) {
+            loadPhongBanOptions(chiNhanhId, "ddlSearchPhongBan", null);
+        });
     });
 }
 

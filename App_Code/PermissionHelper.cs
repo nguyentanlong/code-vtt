@@ -106,7 +106,7 @@ namespace VTT.libs
                 foreach (DataRow dr in ds.Tables[0].Rows)
                 {
                     string maTrang = dr["MaTrang"].ToString();
-                    if (GetPermissionScope(maTrang, "XEM") != null)
+                    if (GetPermissionScope(maTrang, ChucNang.R) != null)
                     {
                         result.Add(maTrang);
                     }

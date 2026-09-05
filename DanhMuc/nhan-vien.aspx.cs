@@ -39,8 +39,8 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            bool canXem = CheckPermission("NHANVIEN", "XEM", GetCurrentPhongBanId(), GetCurrentChiNhanhId());
-            bool canThem = CheckPermission("NHANVIEN", "THEM", GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            bool canXem = CheckPermission(Trang.NV, ChucNang.R, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            bool canThem = CheckPermission(Trang.NV, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
 
             return new { success = true, data = new { canXem = canXem, canThem = canThem } };
         }*/
@@ -49,15 +49,11 @@ namespace VTT.DanhMuc
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-            // goi từ App_Code
-            // string module = AppConstants.Trang.Emp;
-            // string actionXem = AppConstants.ChucNang.R;
-            // string actionThem = AppConstants.ChucNang.I;
-            bool canXem = CheckPermission(Trang.NV, ChucNang.R, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
-            bool canThem = CheckPermission(Trang.NV, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
-            string myScope = GetPermissionScope(Trang.NV, ChucNang.R); // "CONGTY" / "CHINHANH" / "PHONGBAN" / null
 
-            return new { success = true, data = new { canXem = canXem, canThem = canThem, scope = myScope } };
+            bool canThem = CheckPermission(Trang.NV, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            string myScope = GetPermissionScope(Trang.NV, ChucNang.R);
+
+            return new { success = true, data = new { canThem = canThem, scope = myScope, myChiNhanhId = GetCurrentChiNhanhId() } };
         }
 
         [WebMethod(EnableSession = true)]
@@ -145,7 +141,7 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            string myScope = GetPermissionScope("NHANVIEN", "XEM");
+            string myScope = GetPermissionScope(Trang.NV, ChucNang.R);
             if (myScope == null)
                 return new { success = false, message = "Bạn không có quyền xem Danh sách Nhân viên!" };
 
@@ -163,8 +159,8 @@ namespace VTT.DanhMuc
             }
 
             // Lấy DataScope cho Sửa/Xóa ĐÚNG 1 LẦN trước vòng lặp (thay vì gọi CheckPermission cho từng dòng)
-            string scopeSua = GetPermissionScope("NHANVIEN", "SUA");
-            string scopeXoa = GetPermissionScope("NHANVIEN", "XOA");
+            string scopeSua = GetPermissionScope(Trang.NV, ChucNang.U);
+            string scopeXoa = GetPermissionScope(Trang.NV, ChucNang.D);
 
             log.Info($"GetList called with keyword: {keyword}, myScope: {myScope}, effectiveChiNhanhId: {effectiveChiNhanhId}, effectivePhongBanId: {effectivePhongBanId}, trangThai: {trangThai}");
             try
@@ -235,7 +231,7 @@ namespace VTT.DanhMuc
                     long rowPhongBanId = dr["PhongBanChinhThucID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanChinhThucID"]);
                     long rowChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
 
-                    if (!CheckPermission("NHANVIEN", "SUA", rowPhongBanId, rowChiNhanhId))
+                    if (!CheckPermission(Trang.NV, ChucNang.U, rowPhongBanId, rowChiNhanhId))
                         return new { success = false, message = "Bạn không có quyền xem chi tiết Nhân viên này!" };
 
                     var data = new
@@ -277,9 +273,9 @@ namespace VTT.DanhMuc
 
             // Tra đúng ChiNhanhID của Phòng ban vừa chọn trong form, để CheckPermission so khớp chính xác
             long targetChiNhanhId = GetChiNhanhIdOfPhongBan(phongBanChinhThucId);
-            string maChucNang = nhanVienId == 0 ? "THEM" : "SUA";
+            string maChucNang = nhanVienId == 0 ? ChucNang.I : ChucNang.U;
 
-            if (!CheckPermission("NHANVIEN", maChucNang, phongBanChinhThucId, targetChiNhanhId))
+            if (!CheckPermission(Trang.NV, maChucNang, phongBanChinhThucId, targetChiNhanhId))
             {
                 string tenChucNang = nhanVienId == 0 ? "thêm mới" : "sửa";
                 return new { success = false, message = $"Bạn không có quyền {tenChucNang} Nhân viên thuộc Phòng ban này!" };
@@ -333,7 +329,7 @@ namespace VTT.DanhMuc
                     targetChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
                 }
 
-                if (!CheckPermission("NHANVIEN", "XOA", targetPhongBanId, targetChiNhanhId))
+                if (!CheckPermission(Trang.NV, ChucNang.D, targetPhongBanId, targetChiNhanhId))
                     return new { success = false, message = "Bạn không có quyền xóa Nhân viên này!" };
 
                 var pars = new Dictionary<string, object> { { "@NhanVienID", nhanVienId } };

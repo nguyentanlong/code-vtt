@@ -20,12 +20,17 @@ namespace VTT.DanhMuc
             errorMessage = "";
             ConnectServer db = new ConnectServer();
             var pars = new Dictionary<string, object> { { "@DuAnID", duAnId } };
-            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_DuAnGiaiDoan_GetPhongBanID", pars);
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_GetPhongBanChiNhanhID", pars);
 
-            long targetPhongBanId = 0;
-            if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 && ds.Tables[0].Rows[0]["PhongBanID"] != DBNull.Value)
+            long targetPhongBanId = 0, targetChiNhanhId = 0;
+            long? nguoiTaoId = null;
+
+            if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
             {
-                targetPhongBanId = Convert.ToInt64(ds.Tables[0].Rows[0]["PhongBanID"]);
+                DataRow dr = ds.Tables[0].Rows[0];
+                targetPhongBanId = dr["PhongBanID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanID"]);
+                targetChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+                nguoiTaoId = dr["NguoiTaoID"] == DBNull.Value ? (long?)null : Convert.ToInt64(dr["NguoiTaoID"]);
             }
             else
             {
@@ -33,9 +38,9 @@ namespace VTT.DanhMuc
                 return false;
             }
 
-            if (!CanEdit(targetPhongBanId))
+            if (!CheckPermission(Trang.DA, ChucNang.U, targetPhongBanId, targetChiNhanhId, nguoiTaoId))
             {
-                errorMessage = "Bạn không có quyền chỉnh sửa Timeline của Dự án thuộc Phòng ban này!";
+                errorMessage = "Bạn không có quyền chỉnh sửa Timeline của Dự án này!";
                 return false;
             }
             return true;
@@ -51,7 +56,6 @@ namespace VTT.DanhMuc
             {
                 ConnectServer db = new ConnectServer();
 
-                // Đảm bảo mọi giai đoạn trong Danh mục đã được khởi tạo cho dự án này
                 db.ExecuteDatasetStoredProcedure("sp_long_DuAnGiaiDoan_EnsureDefault", new Dictionary<string, object> { { "@DuAnID", duAnId } });
 
                 var pars = new Dictionary<string, object> { { "@DuAnID", duAnId } };
@@ -153,6 +157,8 @@ namespace VTT.DanhMuc
                 };
 
                 db.ExecuteDatasetStoredProcedure("sp_long_DuAnGiaiDoan_Save", pars);
+                // Tự động cập nhật lại Tiến độ tổng của Dự án = trung bình các giai đoạn
+                db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_CapNhatTienDoTuGiaiDoan", new Dictionary<string, object> { { "@DuAnID", duAnId } });
                 return new { success = true, message = "Cập nhật tiến độ thành công!" };
             }
             catch (Exception ex)
