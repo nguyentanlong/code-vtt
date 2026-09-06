@@ -33,15 +33,26 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
+            string themScope = GetPermissionScope(Trang.PB, ChucNang.I);
             try
             {
+                List<object> list = new List<object>();
                 ConnectServer db = new ConnectServer();
                 DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_NhanVien_GetChiNhanhOptions", new Dictionary<string, object>());
 
-                List<object> list = new List<object>();
-                foreach (DataRow dr in ds.Tables[0].Rows)
+                if (themScope == "CONGTY")
                 {
-                    list.Add(new { ChiNhanhID = dr["ChiNhanhID"], TenChiNhanh = dr["TenChiNhanh"].ToString() });
+                    foreach (DataRow dr in ds.Tables[0].Rows)
+                        list.Add(new { ChiNhanhID = dr["ChiNhanhID"], TenChiNhanh = dr["TenChiNhanh"].ToString() });
+                }
+                else
+                {
+                    long myChiNhanhId = GetCurrentChiNhanhId();
+                    foreach (DataRow dr in ds.Tables[0].Rows)
+                    {
+                        if (Convert.ToInt64(dr["ChiNhanhID"]) == myChiNhanhId)
+                            list.Add(new { ChiNhanhID = dr["ChiNhanhID"], TenChiNhanh = dr["TenChiNhanh"].ToString() });
+                    }
                 }
                 return new { success = true, data = list };
             }
@@ -58,12 +69,42 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
+            string themScope = GetPermissionScope(Trang.PB, ChucNang.I);
+
             try
             {
                 ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object> { { "@ExcludeID", excludeId } };
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetChaOptions", pars);
 
+                if (themScope == "PHONGBAN")
+                {
+                    // Trưởng phòng: chỉ được chọn đúng Phòng ban của mình làm Đơn vị cha
+                    long myPb = GetCurrentPhongBanId();
+                    var list0 = new List<object>();
+                    if (myPb != excludeId && myPb != 0)
+                    {
+                        DataSet dsSelf = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetById", new Dictionary<string, object> { { "@PhongBanID", myPb } });
+                        if (dsSelf.Tables.Count > 0 && dsSelf.Tables[0].Rows.Count > 0)
+                        {
+                            list0.Add(new { PhongBanID = myPb, TenPhongBan = dsSelf.Tables[0].Rows[0]["TenPhongBan"].ToString() });
+                        }
+                    }
+                    return new { success = true, data = list0 };
+                }
+
+                var pars = new Dictionary<string, object> { { "@ExcludeID", excludeId } };
+
+                if (themScope == "CHINHANH")
+                {
+                    pars["@ChiNhanhID"] = GetCurrentChiNhanhId();
+                    pars["@ChiNhanhFilterMode"] = true;
+                }
+                else
+                {
+                    pars["@ChiNhanhID"] = DBNull.Value;
+                    pars["@ChiNhanhFilterMode"] = false;
+                }
+
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetChaOptions", pars);
                 List<object> list = new List<object>();
                 foreach (DataRow dr in ds.Tables[0].Rows)
                 {

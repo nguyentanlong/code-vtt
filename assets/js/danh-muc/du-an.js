@@ -323,7 +323,7 @@ function deleteData(id, lyDo) {
     });
 }
 
-function askReasonAndRetry(message, onConfirm) {
+/*function askReasonAndRetry(message, onConfirm) {
     var backdrop = document.createElement("div");
     backdrop.className = "ui-dialog-backdrop";
     backdrop.innerHTML = `
@@ -338,7 +338,9 @@ function askReasonAndRetry(message, onConfirm) {
         </div>
     `;
     document.body.appendChild(backdrop);
-    requestAnimationFrame(function () { backdrop.classList.add("show"); });
+    requestAnimationFrame(function () { backdrop.classList.add("show"); 
+
+    });
 
     function close() {
         backdrop.classList.remove("show");
@@ -356,7 +358,7 @@ function askReasonAndRetry(message, onConfirm) {
         onConfirm(lyDo);
     });
 }
-
+*/
 function escapeHtml(text) {
     if (!text) return "";
     return text

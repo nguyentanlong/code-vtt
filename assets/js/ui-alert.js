@@ -177,3 +177,36 @@ function applyScopeFilterVisibility(scope, chiNhanhSelectId, phongBanSelectId, m
         if (phongBanGroup) phongBanGroup.style.display = "none";
     }
 }
+function askReasonAndRetry(message, onConfirm) {
+    var backdrop = document.createElement("div");
+    backdrop.className = "ui-dialog-backdrop";
+    backdrop.innerHTML = `
+        <div class="ui-dialog-box">
+            <div class="ui-dialog-icon warning">!</div>
+            <div class="ui-dialog-message">${message}</div>
+            <textarea id="txtLyDoInput" class="form-control" rows="3" placeholder="Nhập lý do..." style="margin-top:8px;"></textarea>
+            <div class="ui-dialog-actions" style="margin-top:14px;">
+                <button type="button" class="ui-dialog-btn ui-dialog-btn-secondary" id="btnHuyLyDo">Hủy bỏ</button>
+                <button type="button" class="ui-dialog-btn ui-dialog-btn-primary" id="btnXacNhanLyDo">Xác nhận</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(backdrop);
+    requestAnimationFrame(function () { backdrop.classList.add("show"); });
+
+    function close() {
+        backdrop.classList.remove("show");
+        setTimeout(function () { backdrop.remove(); }, 180);
+    }
+
+    backdrop.querySelector("#btnHuyLyDo").addEventListener("click", close);
+    backdrop.querySelector("#btnXacNhanLyDo").addEventListener("click", function () {
+        var lyDo = backdrop.querySelector("#txtLyDoInput").value.trim();
+        if (!lyDo) {
+            showToast("Vui lòng nhập Lý do!", "error");
+            return;
+        }
+        close();
+        onConfirm(lyDo);
+    });
+}

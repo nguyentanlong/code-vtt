@@ -1,5 +1,5 @@
 var currentQuyTrinhId = 0;
-var vaiTroOptions = [];
+var nhomQuyenOptions = [];
 var buocList = [];
 var canEditPermission = false;
 var editingId = null;
@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
-    Promise.all([loadPermission(), loadVaiTroOptions()]).then(function () {
+    Promise.all([loadPermission(), loadNhomQuyenOptions()]).then(function () {
         loadData();
         loadLichSu();
     });
@@ -45,15 +45,15 @@ function loadPermission() {
     });
 }
 
-function loadVaiTroOptions() {
-    return callWebMethod("GetVaiTroOptions", {}, function (res) { vaiTroOptions = res.data || []; });
+function loadNhomQuyenOptions() {  // đổi từ loadVaiTroOptions
+    return callWebMethod("GetNhomQuyenOptions", {}, function (res) { nhomQuyenOptions = res.data || []; });
 }
 
-function buildVaiTroSelectHtml(selectedId) {
-    var html = '<select class="form-control edit-vaitro"><option value="">-- Không yêu cầu duyệt --</option>';
-    vaiTroOptions.forEach(function (vt) {
-        var selected = (selectedId && vt.VaiTroID == selectedId) ? "selected" : "";
-        html += `<option value="${vt.VaiTroID}" ${selected}>${escapeHtml(vt.TenVaiTro)}</option>`;
+function buildNhomQuyenSelectHtml(selectedId) {  // đổi từ buildVaiTroSelectHtml
+    var html = '<select class="form-control edit-nhomquyen"><option value="">-- Không yêu cầu duyệt --</option>';
+    nhomQuyenOptions.forEach(function (nq) {
+        var selected = (selectedId && nq.NhomQuyenID == selectedId) ? "selected" : "";
+        html += `<option value="${nq.NhomQuyenID}" ${selected}>${escapeHtml(nq.TenNhomQuyen)}</option>`;
     });
     html += "</select>";
     return html;
@@ -86,7 +86,7 @@ function renderTable() {
             tr.innerHTML = `
                 <td style="text-align:center;">${item.ThuTu}</td>
                 <td>${escapeHtml(item.TenBuoc)}</td>
-                <td>${escapeHtml(item.TenVaiTro || '(Không yêu cầu)')}</td>
+                <td>${escapeHtml(item.TenNhomQuyen || '(Không yêu cầu)')}</td>
                 <td>${escapeHtml(item.HanhDong || '')}</td>
                 <td style="text-align:center;">
                     ${canEditPermission ? `
@@ -108,13 +108,13 @@ function buildEditRowHtml(item) {
     var id = item ? item.BuocID : 0;
     var tenBuoc = item ? item.TenBuoc : "";
     var thuTu = item ? item.ThuTu : (buocList.length + 1);
-    var vaiTroId = item ? item.VaiTroDuyetID : null;
+    var nhomQuyenId = item ? item.NhomQuyenDuyetID : null;  // đổi từ vaiTroId
     var hanhDong = item ? item.HanhDong : "";
 
     return `
         <td><input type="number" class="form-control edit-thutu" value="${thuTu}" style="text-align:center;" /></td>
         <td><input type="text" class="form-control edit-tenbuoc" value="${escapeAttr(tenBuoc)}" placeholder="Tên bước..." /></td>
-        <td>${buildVaiTroSelectHtml(vaiTroId)}</td>
+        <td>${buildNhomQuyenSelectHtml(nhomQuyenId)}</td>
         <td><input type="text" class="form-control edit-hanhdong" value="${escapeAttr(hanhDong)}" placeholder="VD: Duyệt/Từ chối" /></td>
         <td style="text-align:center;">
             <button type="button" class="btn-icon text-save" onclick="saveRow(${id})" title="Lưu">
@@ -145,14 +145,15 @@ function saveRow(id) {
     var row = document.querySelector('tr[data-id="' + id + '"]');
     var tenBuoc = row.querySelector(".edit-tenbuoc").value.trim();
     var thuTu = parseInt(row.querySelector(".edit-thutu").value) || 0;
-    var vaiTroId = row.querySelector(".edit-vaitro").value;
+    var nhomQuyenId = row.querySelector(".edit-nhomquyen").value;  // đổi từ edit-vaitro
     var hanhDong = row.querySelector(".edit-hanhdong").value.trim();
 
     if (!tenBuoc) { showToast("Vui lòng nhập Tên bước!", "error"); return; }
 
     callWebMethod("SaveData", {
         buocId: id, quyTrinhId: currentQuyTrinhId, tenBuoc: tenBuoc, thuTu: thuTu,
-        vaiTroDuyetId: vaiTroId ? parseInt(vaiTroId) : null, hanhDong: hanhDong
+        nhomQuyenDuyetId: nhomQuyenId ? parseInt(nhomQuyenId) : null,  // đổi field name
+        hanhDong: hanhDong
     }, function () {
         editingId = null;
         loadData();

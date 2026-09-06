@@ -16,7 +16,7 @@
                         <tr>
                             <th style="width: 90px;">Thứ tự</th>
                             <th>Tên Bước</th>
-                            <th style="width: 220px;">Vai trò duyệt</th>
+                            <th style="width: 220px;">Nhóm quyền duyệt</th>
                             <th style="width: 150px;">Hành động</th>
                             <th style="width: 140px; text-align: center;">Thao tác</th>
                         </tr>
