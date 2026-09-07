@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-function callWebMethod(methodName, dataObj, successCallback) {
+/*function callWebMethod(methodName, dataObj, successCallback) {
     return fetch("phong-ban.aspx/" + methodName, {
         method: "POST",
         headers: { "Content-Type": "application/json; charset=utf-8" },
@@ -30,36 +30,31 @@ function callWebMethod(methodName, dataObj, successCallback) {
             console.error("AJAX Error:", err);
             showToast("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!", "error");
         });
+}*/
+function callWebMethod(methodName, dataObj, successCallback) {
+    return fetch("phong-ban.aspx/" + methodName, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify(dataObj || {})
+    })
+        .then(response => response.json())
+        .then(res => {
+            var result = res.d;
+            if (result && (result.success || result.requireReason)) {
+                successCallback(result);
+            } else {
+                showToast(result ? result.message : "Thao tác thất bại!", "error");
+                if (result && result.message && (result.message.includes("đăng nhập") || result.message.includes("hết hạn"))) {
+                    var currentUrl = encodeURIComponent(window.location.href);
+                    window.location.href = "../login.aspx?returnUrl=" + currentUrl;
+                }
+            }
+        })
+        .catch(function () {
+            showToast("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!", "error");
+        });
 }
 
-/*function loadPermission() {
-    return callWebMethod("GetPermission", {}, function (res) {
-        canThemPermission = res.data.canThem;
-        document.getElementById("btnAddNew").style.display = canThemPermission ? "inline-flex" : "none";
-
-        var scope = res.data.scope;
-        var chiNhanhGroup = document.getElementById("ddlSearchChiNhanh").closest(".filter-group");
-        var phongBanGroup = document.getElementById("ddlSearchPhongBan")
-            ? document.getElementById("ddlSearchPhongBan").closest(".filter-group")
-            : null; // phong-ban.aspx không có ddlSearchPhongBan riêng, chỉ nhan-vien/du-an mới có
-
-        if (scope === "CONGTY") {
-            // Admin: hiện cả 2, hoạt động cascade như cũ
-            chiNhanhGroup.style.display = "";
-            if (phongBanGroup) phongBanGroup.style.display = "";
-        } else if (scope === "CHINHANH") {
-            chiNhanhGroup.style.display = "none";
-            if (phongBanGroup) {
-                phongBanGroup.style.display = "";
-                loadPhongBanOptions(res.data.myChiNhanhId, "ddlSearchPhongBan", null);
-            }
-        } else {
-            // PHONGBAN (Trưởng phòng/Phó phòng/Nhân viên): ẩn cả 2 filter, luôn chỉ thao tác đúng phòng mình
-            chiNhanhGroup.style.display = "none";
-            if (phongBanGroup) phongBanGroup.style.display = "none";
-        }
-    });
-}*/
 function loadPermission() {
     return callWebMethod("GetPermission", {}, function (res) {
         canThemPermission = res.data.canThem;
@@ -183,7 +178,7 @@ function closeModal() {
     document.getElementById("modalPhongBan").style.display = "none";
 }
 
-function saveData() {
+/*function saveData() {
     var id = parseInt(document.getElementById("hddPhongBanID").value);
     var maPhongBan = document.getElementById("txtMaPhongBan").value.trim();
     var tenPhongBan = document.getElementById("txtTenPhongBan").value.trim();
@@ -216,6 +211,55 @@ function deleteData(id) {
         callWebMethod("DeleteData", { id: id }, function (res) {
             showToast(res.message, "success");
             loadData();
+        });
+    });
+}*/
+function saveData(lyDo) {
+    var id = parseInt(document.getElementById("hddPhongBanID").value);
+    var maPhongBan = document.getElementById("txtMaPhongBan").value.trim();
+    var tenPhongBan = document.getElementById("txtTenPhongBan").value.trim();
+    var chiNhanhId = document.getElementById("ddlFormChiNhanh").value;
+    var phongBanChaId = document.getElementById("ddlFormPhongBanCha").value;
+
+    if (!maPhongBan) { showToast("Vui lòng nhập Mã đơn vị!", "error"); return; }
+    if (!tenPhongBan) { showToast("Vui lòng nhập Tên đơn vị!", "error"); return; }
+
+    var payload = {
+        phongBanId: id,
+        chiNhanhId: chiNhanhId ? parseInt(chiNhanhId) : null,
+        phongBanChaId: phongBanChaId ? parseInt(phongBanChaId) : null,
+        maPhongBan: maPhongBan,
+        tenPhongBan: tenPhongBan,
+        thuTu: parseInt(document.getElementById("txtThuTu").value) || 0,
+        trangThai: parseInt(document.getElementById("ddlTrangThai").value),
+        lyDo: lyDo || ""
+    };
+
+    callWebMethod("SaveData", payload, function (res) {
+        if (res.success) {
+            showToast(res.message, "success");
+            closeModal();
+            loadData();
+        } else if (res.requireReason) {
+            askReasonAndRetry(res.message, function (nhapLyDo) {
+                saveData(nhapLyDo);
+            });
+        }
+    });
+}
+
+function deleteData(id, lyDo) {
+    showConfirmDialog("Bạn có chắc chắn muốn xóa Đơn vị này khỏi hệ thống?").then(function (ok) {
+        if (!ok) return;
+        callWebMethod("DeleteData", { id: id, lyDo: lyDo || "" }, function (res) {
+            if (res.success) {
+                showToast(res.message, "success");
+                loadData();
+            } else if (res.requireReason) {
+                askReasonAndRetry(res.message, function (nhapLyDo) {
+                    deleteData(id, nhapLyDo);
+                });
+            }
         });
     });
 }

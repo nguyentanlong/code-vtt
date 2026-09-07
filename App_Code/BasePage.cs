@@ -91,5 +91,6 @@ namespace VTT.libs
         {
             return targetPhongBanId != 0 && targetPhongBanId == GetCurrentPhongBanId();
         }
+        protected static int GetCurrentCapBac() => PermissionHelper.GetCurrentCapBac();
     }
 }

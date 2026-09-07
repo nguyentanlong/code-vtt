@@ -167,8 +167,15 @@ namespace VTT.DanhMuc
                     long rowChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
                     int capDo = Convert.ToInt32(dr["CapDo"]);
 
-                    bool canEditRow = EvaluateScope(scopeSua, rowPhongBanId, rowChiNhanhId);
-                    bool canDeleteRow = EvaluateScope(scopeXoa, rowPhongBanId, rowChiNhanhId);
+                    // Nếu là Bộ phận (CapDo > 1), phạm vi thật sự để so khớp là Phòng ban CHA, không phải chính nó
+                    long effectiveTargetPhongBanId = rowPhongBanId;
+                    if (capDo > 1 && dr["PhongBanChaID"] != DBNull.Value)
+                    {
+                        effectiveTargetPhongBanId = Convert.ToInt64(dr["PhongBanChaID"]);
+                    }
+
+                    bool canEditRow = EvaluateScope(scopeSua, effectiveTargetPhongBanId, rowChiNhanhId);
+                    bool canDeleteRow = EvaluateScope(scopeXoa, effectiveTargetPhongBanId, rowChiNhanhId);
 
                     list.Add(new
                     {
@@ -229,29 +236,64 @@ namespace VTT.DanhMuc
         }
 
         [WebMethod(EnableSession = true)]
-        public static object SaveData(long phongBanId, object chiNhanhId, object phongBanChaId, string maPhongBan, string tenPhongBan, int thuTu, byte trangThai)
+        public static object SaveData(long phongBanId, object chiNhanhId, object phongBanChaId, string maPhongBan, string tenPhongBan, int thuTu, byte trangThai, string lyDo)
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            long congTyId = GetCurrentCongTyId();
-            if (congTyId == 0)
-                return new { success = false, message = "Không xác định được Công ty của tài khoản. Vui lòng đăng nhập lại!" };
-
-            long targetChiNhanhId = chiNhanhId == null ? 0 : Convert.ToInt64(chiNhanhId);
-            string maChucNang = phongBanId == 0 ? ChucNang.I : ChucNang.U;
-
-            // Với Sửa, target phải theo đúng phòng ban đang sửa; với Thêm mới, target theo Chi nhánh vừa chọn
-            long targetPhongBanId = phongBanId == 0 ? 0 : phongBanId;
-            if (!CheckPermission(Trang.PB, maChucNang, targetPhongBanId != 0 ? targetPhongBanId : GetCurrentPhongBanId(), targetChiNhanhId))
-            {
-                string tenChucNang = phongBanId == 0 ? "thêm mới" : "sửa";
-                return new { success = false, message = $"Bạn không có quyền {tenChucNang} đơn vị tổ chức này!" };
-            }
-
-            log.Info($"SaveData called with phongBanId: {phongBanId}, maPhongBan: {maPhongBan}, tenPhongBan: {tenPhongBan}");
             try
             {
+                long congTyId = GetCurrentCongTyId();
+                if (congTyId == 0)
+                    return new { success = false, message = "Không xác định được Công ty của tài khoản. Vui lòng đăng nhập lại!" };
+
+                long targetChiNhanhId = chiNhanhId == null ? 0 : Convert.ToInt64(chiNhanhId);
+                string maChucNang = phongBanId == 0 ? ChucNang.I : ChucNang.U;
+
+                // Xác định đúng mục tiêu để so khớp phạm vi quyền:
+                // - Thêm mới (phongBanId=0): mục tiêu là PhongBanChaID vừa chọn trong form
+                // - Sửa (phongBanId!=0): phải TRA LẠI xem bản ghi đang sửa có PhongBanChaID thật sự là gì
+                //   (nếu là Bộ phận/Tổ, mục tiêu là Phòng ban CHA của nó, không phải chính nó)
+                long targetPhongBanId;
+                if (phongBanId == 0)
+                {
+                    targetPhongBanId = phongBanChaId == null ? 0 : Convert.ToInt64(phongBanChaId);
+                }
+                else
+                {
+                    var scopeInfoPars = new Dictionary<string, object> { { "@PhongBanID", phongBanId } };
+                    ConnectServer dbLookup = new ConnectServer();
+                    DataSet dsScope = dbLookup.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetScopeInfo", scopeInfoPars);
+
+                    targetPhongBanId = phongBanId; // mặc định: chính nó (đúng cho Phòng ban cấp cao nhất, không có cha)
+                    if (dsScope.Tables.Count > 0 && dsScope.Tables[0].Rows.Count > 0)
+                    {
+                        DataRow drScope = dsScope.Tables[0].Rows[0];
+                        if (drScope["PhongBanChaID"] != DBNull.Value)
+                        {
+                            targetPhongBanId = Convert.ToInt64(drScope["PhongBanChaID"]);
+                        }
+                        if (drScope["ChiNhanhID"] != DBNull.Value)
+                        {
+                            targetChiNhanhId = Convert.ToInt64(drScope["ChiNhanhID"]);
+                        }
+                    }
+                }
+
+                string dataScope = GetPermissionScope(Trang.PB, maChucNang);
+                if (!EvaluateScope(dataScope, targetPhongBanId, targetChiNhanhId))
+                {
+                    string tenChucNang = phongBanId == 0 ? "thêm mới" : "sửa";
+                    return new { success = false, message = $"Bạn không có quyền {tenChucNang} đơn vị tổ chức này!" };
+                }
+
+                if (dataScope != "CONGTY" && string.IsNullOrWhiteSpace(lyDo))
+                {
+                    return new { success = false, message = "Vui lòng nhập Lý do thay đổi Phòng ban!", requireReason = true };
+                }
+
+                log.Info($"SaveData called with phongBanId: {phongBanId}, maPhongBan: {maPhongBan}, tenPhongBan: {tenPhongBan}");
+
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object>
                 {
@@ -266,6 +308,20 @@ namespace VTT.DanhMuc
                 };
 
                 db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_Save", pars);
+
+                if (dataScope != "CONGTY")
+                {
+                    var logPars = new Dictionary<string, object>
+                    {
+                        { "@TenBang", "PhongBan" },
+                        { "@KhoaChinh", phongBanId == 0 ? 0 : phongBanId },
+                        { "@HanhDong", maChucNang == ChucNang.I ? "THEM" : "SUA" },
+                        { "@NguoiThucHienID", GetCurrentUserId() },
+                        { "@LyDo", lyDo }
+                    };
+                    db.ExecuteDatasetStoredProcedure("sp_v2_GhiLyDoThayDoi", logPars);
+                }
+
                 return new { success = true, message = phongBanId == 0 ? "Thêm mới thành công!" : "Cập nhật thành công!" };
             }
             catch (Exception ex)
@@ -276,7 +332,7 @@ namespace VTT.DanhMuc
         }
 
         [WebMethod(EnableSession = true)]
-        public static object DeleteData(long id)
+        public static object DeleteData(long id, string lyDo)
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
@@ -285,19 +341,38 @@ namespace VTT.DanhMuc
             {
                 ConnectServer db = new ConnectServer();
                 var lookupPars = new Dictionary<string, object> { { "@PhongBanID", id } };
-                DataSet dsLookup = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetChiNhanhID", lookupPars);
+                DataSet dsLookup = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetScopeInfo", lookupPars);
 
                 long targetChiNhanhId = 0;
-                if (dsLookup.Tables.Count > 0 && dsLookup.Tables[0].Rows.Count > 0 && dsLookup.Tables[0].Rows[0]["ChiNhanhID"] != DBNull.Value)
+                long effectiveTargetPhongBanId = id;
+                if (dsLookup.Tables.Count > 0 && dsLookup.Tables[0].Rows.Count > 0)
                 {
-                    targetChiNhanhId = Convert.ToInt64(dsLookup.Tables[0].Rows[0]["ChiNhanhID"]);
+                    DataRow dr = dsLookup.Tables[0].Rows[0];
+                    targetChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+                    int capDo = Convert.ToInt32(dr["CapDo"]);
+                    if (capDo > 1 && dr["PhongBanChaID"] != DBNull.Value)
+                        effectiveTargetPhongBanId = Convert.ToInt64(dr["PhongBanChaID"]);
                 }
 
-                if (!CheckPermission(Trang.PB, ChucNang.D, id, targetChiNhanhId))
+                string dataScope = GetPermissionScope(Trang.PB, ChucNang.D);
+                if (!EvaluateScope(dataScope, effectiveTargetPhongBanId, targetChiNhanhId))
                     return new { success = false, message = "Bạn không có quyền xóa đơn vị tổ chức này!" };
+
+                if (dataScope != "CONGTY" && string.IsNullOrWhiteSpace(lyDo))
+                    return new { success = false, message = "Vui lòng nhập Lý do xóa Phòng ban!", requireReason = true };
 
                 var pars = new Dictionary<string, object> { { "@PhongBanID", id } };
                 db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_Delete", pars);
+
+                if (dataScope != "CONGTY")
+                {
+                    var logPars = new Dictionary<string, object>
+                    {
+                        { "@TenBang", "PhongBan" }, { "@KhoaChinh", id }, { "@HanhDong", "XOA" },
+                        { "@NguoiThucHienID", GetCurrentUserId() }, { "@LyDo", lyDo }
+                    };
+                    db.ExecuteDatasetStoredProcedure("sp_v2_GhiLyDoThayDoi", logPars);
+                }
 
                 return new { success = true, message = "Xóa thành công!" };
             }

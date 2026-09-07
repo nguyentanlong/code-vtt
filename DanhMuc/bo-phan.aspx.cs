@@ -134,6 +134,8 @@ namespace VTT.DanhMuc
                 foreach (DataRow dr in ds.Tables[0].Rows)
                 {
                     long rowPb = Convert.ToInt64(dr["PhongBanID"]);
+                    // Bộ phận luôn có Cha là Phòng ban thật -> dùng Cha để so khớp phạm vi, không dùng chính nó
+                    long rowPbCha = dr["PhongBanChaID"] == DBNull.Value ? rowPb : Convert.ToInt64(dr["PhongBanChaID"]);
                     long rowCn = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
 
                     list.Add(new
@@ -144,8 +146,8 @@ namespace VTT.DanhMuc
                         TenPhongBanCha = dr["TenPhongBanCha"] == DBNull.Value ? "" : dr["TenPhongBanCha"].ToString(),
                         TenChiNhanh = dr["TenChiNhanh"] == DBNull.Value ? "Trực thuộc Tổng công ty" : dr["TenChiNhanh"].ToString(),
                         TrangThai = Convert.ToByte(dr["TrangThai"]),
-                        CanEditRow = EvaluateScope(scopeSua, rowPb, rowCn),
-                        CanDeleteRow = EvaluateScope(scopeXoa, rowPb, rowCn)
+                        CanEditRow = EvaluateScope(scopeSua, rowPbCha, rowCn),
+                        CanDeleteRow = EvaluateScope(scopeXoa, rowPbCha, rowCn)
                     });
                 }
                 return new { success = true, data = list };
@@ -199,27 +201,30 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            long congTyId = GetCurrentCongTyId();
-            if (phongBanChaId <= 0)
-                return new { success = false, message = "Vui lòng chọn Phòng ban cha!" };
-
-            string maChucNang = phongBanId == 0 ? ChucNang.I : ChucNang.U;
-            string dataScope = GetPermissionScope(Trang.BP, maChucNang);
-
-            if (!EvaluateScope(dataScope, phongBanChaId, chiNhanhId == null ? 0 : Convert.ToInt64(chiNhanhId)))
-            {
-                string tenCN = phongBanId == 0 ? "thêm mới" : "sửa";
-                return new { success = false, message = $"Bạn không có quyền {tenCN} Bộ phận này!" };
-            }
-
-            // Admin (CONGTY) không cần Lý do; CN_ADMIN/TRUONGPHONG (CHINHANH/PHONGBAN) bắt buộc Lý do
-            if (dataScope != "CONGTY" && string.IsNullOrWhiteSpace(lyDo))
-            {
-                return new { success = false, message = "Vui lòng nhập Lý do thay đổi Bộ phận!", requireReason = true };
-            }
-
             try
             {
+                long congTyId = GetCurrentCongTyId();
+                if (phongBanChaId <= 0)
+                    return new { success = false, message = "Vui lòng chọn Phòng ban cha!" };
+
+                string maChucNang = phongBanId == 0 ? ChucNang.I : ChucNang.U;
+                long targetChiNhanhId = chiNhanhId == null ? 0 : Convert.ToInt64(chiNhanhId);
+
+                // Khi Sửa, "PhongBanChaID thật sự" của bản ghi đang lưu chính là mục tiêu để so khớp quyền —
+                // dùng đúng phongBanChaId người dùng vừa chọn trong form (đây chính là Cha), không cần tra lại DB
+                // vì bo-phan.aspx luôn thao tác trên đơn vị CapDo>=2, Cha luôn tồn tại.
+                string dataScope = GetPermissionScope(Trang.BP, maChucNang);
+                if (!EvaluateScope(dataScope, phongBanChaId, targetChiNhanhId))
+                {
+                    string tenCN = phongBanId == 0 ? "thêm mới" : "sửa";
+                    return new { success = false, message = $"Bạn không có quyền {tenCN} Bộ phận này!" };
+                }
+
+                if (dataScope != "CONGTY" && string.IsNullOrWhiteSpace(lyDo))
+                {
+                    return new { success = false, message = "Vui lòng nhập Lý do thay đổi Bộ phận!", requireReason = true };
+                }
+
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object>
                 {
@@ -266,14 +271,20 @@ namespace VTT.DanhMuc
             {
                 ConnectServer db = new ConnectServer();
                 var lookupPars = new Dictionary<string, object> { { "@PhongBanID", id } };
-                DataSet dsLookup = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetChiNhanhID", lookupPars);
+                DataSet dsLookup = db.ExecuteDatasetStoredProcedure("sp_v2_PhongBan_GetScopeInfo", lookupPars);
 
                 long targetCn = 0;
-                if (dsLookup.Tables.Count > 0 && dsLookup.Tables[0].Rows.Count > 0 && dsLookup.Tables[0].Rows[0]["ChiNhanhID"] != DBNull.Value)
-                    targetCn = Convert.ToInt64(dsLookup.Tables[0].Rows[0]["ChiNhanhID"]);
+                long effectiveTargetPb = id;
+                if (dsLookup.Tables.Count > 0 && dsLookup.Tables[0].Rows.Count > 0)
+                {
+                    DataRow dr = dsLookup.Tables[0].Rows[0];
+                    targetCn = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+                    if (dr["PhongBanChaID"] != DBNull.Value)
+                        effectiveTargetPb = Convert.ToInt64(dr["PhongBanChaID"]);
+                }
 
                 string dataScope = GetPermissionScope(Trang.BP, ChucNang.D);
-                if (!EvaluateScope(dataScope, id, targetCn))
+                if (!EvaluateScope(dataScope, effectiveTargetPb, targetCn))
                     return new { success = false, message = "Bạn không có quyền xóa Bộ phận này!" };
 
                 if (dataScope != "CONGTY" && string.IsNullOrWhiteSpace(lyDo))
