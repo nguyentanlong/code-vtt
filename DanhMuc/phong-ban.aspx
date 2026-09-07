@@ -13,10 +13,10 @@
             <div class="dm-filter">
                 <div class="filter-group">
                     <input type="text" id="txtSearchKeyword" class="form-control" placeholder="Tìm theo Mã hoặc Tên..."
-                        onkeyup="if(event.keyCode===13) loadData();" />
+                        onkeyup="if(event.keyCode===13) loadData(1);" />
                 </div>
                 <div class="filter-group">
-                    <select id="ddlSearchChiNhanh" class="form-control" onchange="loadData()">
+                    <select id="ddlSearchChiNhanh" class="form-control" onchange="loadData(1)">
                         <option value="">-- Tất cả chi nhánh --</option>
                     </select>
                 </div>
@@ -27,7 +27,7 @@
                         <option value="0">Ngừng hoạt động</option>
                     </select>
                 </div>
-                <button type="button" class="btn btn-info" onclick="loadData()">
+                <button type="button" class="btn btn-info" onclick="currentPagePhongBan = 1;loadData()">
                     <i class="fa fa-search"></i> Tìm kiếm
                 </button>
             </div>
@@ -48,6 +48,7 @@
                 </table>
             </div>
         </div>
+        <div id="paginationPhongBan"></div>
 
         <div id="modalPhongBan" class="modal-backdrop" style="display: none;">
             <div class="modal-box">

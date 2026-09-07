@@ -64,33 +64,15 @@ namespace VTT.libs
 
         public static long GetCurrentPhongBanId() => PermissionHelper.GetCurrentPhongBanId();
         public static long GetCurrentChiNhanhId() => PermissionHelper.GetCurrentChiNhanhId();
+        protected static int GetCurrentCapBac() => PermissionHelper.GetCurrentCapBac();
 
-        protected static bool EvaluateScope(string dataScope, long targetPhongBanId = 0, long targetChiNhanhId = 0, long? nguoiTaoId = null)
-            => PermissionHelper.EvaluateScope(dataScope, targetPhongBanId, targetChiNhanhId, nguoiTaoId);
-        
         protected static string GetPermissionScope(string maTrang, string maChucNang)
             => PermissionHelper.GetPermissionScope(maTrang, maChucNang);
 
         protected static bool CheckPermission(string maTrang, string maChucNang, long targetPhongBanId = 0, long targetChiNhanhId = 0, long? nguoiTaoId = null)
             => PermissionHelper.CheckPermission(maTrang, maChucNang, targetPhongBanId, targetChiNhanhId, nguoiTaoId);
-                [Obsolete("Tạm thời, cần refactor trang dùng hàm này sang CheckPermission()")]
-        protected static AccessScope GetCurrentAccessScope()
-        {
-            return new AccessScope
-            {
-                IsFullAccess = false,
-                IsTongCtyAccess = false,
-                IsChiNhanhAccess = false,
-                CongTyID = GetCurrentCongTyId(),
-                PhongBanID = GetCurrentPhongBanId()
-            };
-        }
 
-        [Obsolete("Tạm thời, cần refactor trang dùng hàm này sang CheckPermission()")]
-        protected static bool CanEdit(long targetPhongBanId)
-        {
-            return targetPhongBanId != 0 && targetPhongBanId == GetCurrentPhongBanId();
-        }
-        protected static int GetCurrentCapBac() => PermissionHelper.GetCurrentCapBac();
+        protected static bool EvaluateScope(string dataScope, long targetPhongBanId = 0, long targetChiNhanhId = 0, long? nguoiTaoId = null)
+            => PermissionHelper.EvaluateScope(dataScope, targetPhongBanId, targetChiNhanhId, nguoiTaoId);
     }
 }

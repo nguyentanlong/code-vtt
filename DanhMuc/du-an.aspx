@@ -17,7 +17,7 @@
             <div class="dm-filter">
                 <div class="filter-group">
                     <input type="text" id="txtSearchKeyword" class="form-control"
-                        placeholder="Tìm theo Mã hoặc Tên dự án..." onkeyup="if(event.keyCode===13) loadData();" />
+                        placeholder="Tìm theo Mã hoặc Tên dự án..." onkeyup="if(event.keyCode===13) loadData(1);" />
                 </div>
                 <div class="filter-group">
                     <select id="ddlSearchChiNhanh" class="form-control" onchange="onFilterChiNhanhChange()">
@@ -25,12 +25,12 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <select id="ddlSearchPhongBan" class="form-control" onchange="loadData()">
+                    <select id="ddlSearchPhongBan" class="form-control" onchange="loadData(1)">
                         <option value="">-- Tất cả phòng ban --</option>
                     </select>
                 </div>
                 <div class="filter-group">
-                    <select id="ddlSearchTrangThai" class="form-control" onchange="loadData()">
+                    <select id="ddlSearchTrangThai" class="form-control" onchange="loadData(1)">
                         <option value="">-- Tất cả trạng thái --</option>
                         <option value="0">Chuẩn bị</option>
                         <option value="1">Đang thực hiện</option>
@@ -38,7 +38,7 @@
                         <option value="3">Tạm dừng</option>
                     </select>
                 </div>
-                <button type="button" class="btn btn-info" onclick="loadData()">
+                <button type="button" class="btn btn-info" onclick="currentPageDuAn = 1;loadData()">
                     <i class="fa fa-search"></i> Tìm kiếm
                 </button>
             </div>
@@ -60,6 +60,7 @@
                 </table>
             </div>
         </div>
+        <div id="paginationDuAn"></div>
 
         <div id="modalDuAn" class="modal-backdrop" style="display: none;">
             <div class="modal-box" style="width: 700px;">

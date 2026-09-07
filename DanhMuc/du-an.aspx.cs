@@ -86,7 +86,7 @@ namespace VTT.DanhMuc
             return new { success = true, data = list };
         }
 
-        [WebMethod(EnableSession = true)]
+        /*[WebMethod(EnableSession = true)]
         public static object GetList(string keyword, object chiNhanhId, object phongBanId, string trangThai)
         {
             if (!IsAuthenticated())
@@ -153,6 +153,87 @@ namespace VTT.DanhMuc
                 }
 
                 return new { success = true, data = list };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi GetList: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }*/
+        [WebMethod(EnableSession = true)]
+        public static object GetList(string keyword, object chiNhanhId, object phongBanId, string trangThai, int pageNumber)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            string myScope = GetPermissionScope(Trang.DA, ChucNang.R);
+            if (myScope == null)
+                return new { success = false, message = "Bạn không có quyền xem Danh sách Dự án!" };
+
+            object effectiveChiNhanhId = chiNhanhId;
+            object effectivePhongBanId = phongBanId;
+
+            if (myScope == "PHONGBAN")
+            {
+                effectivePhongBanId = GetCurrentPhongBanId();
+                effectiveChiNhanhId = null;
+            }
+            else if (myScope == "CHINHANH")
+            {
+                effectiveChiNhanhId = GetCurrentChiNhanhId();
+            }
+
+            string scopeSua = GetPermissionScope(Trang.DA, ChucNang.U);
+            string scopeXoa = GetPermissionScope(Trang.DA, ChucNang.D);
+
+            int pageSize = 12;
+            if (pageNumber <= 0) pageNumber = 1;
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                var pars = new Dictionary<string, object>
+                {
+                    { "@Keyword", string.IsNullOrEmpty(keyword) ? DBNull.Value : (object)keyword },
+                    { "@ChiNhanhID", effectiveChiNhanhId == null ? DBNull.Value : (object)Convert.ToInt32(effectiveChiNhanhId) },
+                    { "@PhongBanID", effectivePhongBanId == null ? DBNull.Value : (object)Convert.ToInt32(effectivePhongBanId) },
+                    { "@TrangThai", string.IsNullOrEmpty(trangThai) ? DBNull.Value : (object)Convert.ToByte(trangThai) },
+                    { "@PageNumber", pageNumber },
+                    { "@PageSize", pageSize }
+                };
+
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_GetList", pars);
+
+                int tongSoDong = ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 ? Convert.ToInt32(ds.Tables[0].Rows[0]["TongSoDong"]) : 0;
+                DataTable dt = ds.Tables.Count > 1 ? ds.Tables[1] : ds.Tables[0];
+
+                long myUserId = GetCurrentUserId();
+
+                List<object> list = new List<object>();
+                foreach (DataRow dr in dt.Rows)
+                {
+                    long rowPhongBanId = Convert.ToInt64(dr["PhongBanID"]);
+                    long rowChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+                    long? rowNguoiTaoId = dr["NguoiTaoID"] == DBNull.Value ? (long?)null : Convert.ToInt64(dr["NguoiTaoID"]);
+
+                    bool canEditRow = EvaluateScope(scopeSua, rowPhongBanId, rowChiNhanhId, rowNguoiTaoId);
+                    bool canDeleteRow = EvaluateScope(scopeXoa, rowPhongBanId, rowChiNhanhId, rowNguoiTaoId);
+
+                    list.Add(new
+                    {
+                        DuAnID = dr["DuAnID"],
+                        MaDuAn = dr["MaDuAn"].ToString(),
+                        TenDuAn = dr["TenDuAn"].ToString(),
+                        TenPhongBan = dr["TenPhongBan"] == DBNull.Value ? "" : dr["TenPhongBan"].ToString(),
+                        TienDo = dr["TienDo"],
+                        TrangThaiDuAn = Convert.ToByte(dr["TrangThaiDuAn"]),
+                        LaNguoiTao = rowNguoiTaoId.HasValue && rowNguoiTaoId.Value == myUserId,
+                        CanEditRow = canEditRow,
+                        CanDeleteRow = canDeleteRow
+                    });
+                }
+
+                return new { success = true, data = list, tongSoDong = tongSoDong, pageSize = pageSize };
             }
             catch (Exception ex)
             {

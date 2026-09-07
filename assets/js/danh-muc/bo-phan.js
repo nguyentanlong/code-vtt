@@ -1,4 +1,5 @@
 ﻿var canThemPermission = false;
+var currentPageBoPhan = 1;
 
 document.addEventListener("DOMContentLoaded", function () {
     Promise.all([loadPermission(), loadChiNhanhOptions()]).then(function () {
@@ -68,7 +69,8 @@ function onFormChiNhanhChange() {
     loadPhongBanChaOptions(chiNhanhId, null);
 }
 
-function loadData() {
+function loadData(pageNumber) {
+    if (pageNumber) currentPageBoPhan = pageNumber;
     var keyword = document.getElementById("txtSearchKeyword").value;
     var chiNhanhId = document.getElementById("ddlSearchChiNhanh").value;
     var trangThai = document.getElementById("ddlSearchTrangThai").value;
@@ -76,13 +78,15 @@ function loadData() {
     callWebMethod("GetList", {
         keyword: keyword,
         chiNhanhId: chiNhanhId ? parseInt(chiNhanhId) : null,
-        trangThai: trangThai
+        trangThai: trangThai,
+        pageNumber: currentPageBoPhan
     }, function (res) {
         var tbody = document.getElementById("tbodyBoPhan");
         tbody.innerHTML = "";
 
         if (!res.data || res.data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">Không tìm thấy dữ liệu nào</td></tr>';
+            renderPagination("paginationBoPhan", currentPageBoPhan, res.tongSoDong || 0, res.pageSize || 12, function (p) { loadData(p); });
             return;
         }
 
@@ -118,6 +122,7 @@ function loadData() {
             `;
             tbody.appendChild(tr);
         });
+        renderPagination("paginationBoPhan", currentPageBoPhan, res.tongSoDong || 0, res.pageSize || 12, function (p) { loadData(p); });
     });
 }
 

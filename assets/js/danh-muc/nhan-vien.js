@@ -1,6 +1,7 @@
 ﻿var canThemPermission = false;
 var chiNhanhOptions = [];
 var chucVuOptions = [];
+var currentPageNhanVien = 1;
 
 document.addEventListener("DOMContentLoaded", function () {
     Promise.all([loadPermission(), loadChiNhanhOptions(), loadChucVuOptions()]).then(function () {
@@ -119,7 +120,7 @@ function loadPhongBanOptions(chiNhanhId, targetSelectId, selectedId) {
 function onFilterChiNhanhChange() {
     var chiNhanhId = document.getElementById("ddlSearchChiNhanh").value;
     loadPhongBanOptions(chiNhanhId, "ddlSearchPhongBan", null).then(function () {
-        loadData();
+        loadData(1);
     });
 }
 
@@ -128,7 +129,8 @@ function onFormChiNhanhChange() {
     loadPhongBanOptions(chiNhanhId, "ddlFormPhongBan", null);
 }
 
-function loadData() {
+function loadData(pageNumber) {
+    if (pageNumber) currentPageNhanVien = pageNumber;
     var keyword = document.getElementById("txtSearchKeyword").value;
     var chiNhanhId = document.getElementById("ddlSearchChiNhanh").value;
     var phongBanId = document.getElementById("ddlSearchPhongBan").value;
@@ -138,13 +140,15 @@ function loadData() {
         keyword: keyword,
         chiNhanhId: chiNhanhId ? parseInt(chiNhanhId) : null,
         phongBanId: phongBanId ? parseInt(phongBanId) : null,
-        trangThai: trangThai
+        trangThai: trangThai,
+        pageNumber: currentPageNhanVien
     }, function (res) {
         var tbody = document.getElementById("tbodyNhanVien");
         tbody.innerHTML = "";
 
         if (!res.data || res.data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#888;">Không tìm thấy dữ liệu nào</td></tr>';
+            renderPagination("paginationNhanVien", currentPageNhanVien, res.tongSoDong || 0, res.pageSize || 12, function (p) { loadData(p); });
             return;
         }
 
@@ -184,6 +188,7 @@ function loadData() {
             `;
             tbody.appendChild(tr);
         });
+        renderPagination("paginationNhanVien", currentPageNhanVien, res.tongSoDong || 0, res.pageSize || 12, function (p) { loadData(p); });
     });
 }
 

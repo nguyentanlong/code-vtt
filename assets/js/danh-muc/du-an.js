@@ -1,5 +1,6 @@
 var fpNgayBatDau, fpNgayKetThuc;
 var canThemPermission = false;
+var currentPageDuAn = 1;
 
 document.addEventListener("DOMContentLoaded", function () {
     var fpOptions = { dateFormat: "d/m/Y", allowInput: true };
@@ -114,7 +115,7 @@ function loadLoaiCongTrinhOptions() {
 
 function onFilterChiNhanhChange() {
     var chiNhanhId = document.getElementById("ddlSearchChiNhanh").value;
-    loadPhongBanOptions(chiNhanhId, "ddlSearchPhongBan", null).then(function () { loadData(); });
+    loadPhongBanOptions(chiNhanhId, "ddlSearchPhongBan", null).then(function () { loadData(1); });
 }
 
 function onFormChiNhanhChange() {
@@ -129,7 +130,9 @@ var trangThaiConfig = {
     3: { text: "Tạm dừng", cssClass: "badge-danger" }
 };
 
-function loadData() {
+function loadData(pageNumber) {
+    if (pageNumber) currentPageDuAn = pageNumber;
+
     var keyword = document.getElementById("txtSearchKeyword").value;
     var chiNhanhId = document.getElementById("ddlSearchChiNhanh").value;
     var phongBanId = document.getElementById("ddlSearchPhongBan").value;
@@ -139,13 +142,15 @@ function loadData() {
         keyword: keyword,
         chiNhanhId: chiNhanhId ? parseInt(chiNhanhId) : null,
         phongBanId: phongBanId ? parseInt(phongBanId) : null,
-        trangThai: trangThai
+        trangThai: trangThai,
+        pageNumber: currentPageDuAn,
     }, function (res) {
         var tbody = document.getElementById("tbodyDuAn");
         tbody.innerHTML = "";
 
         if (!res.data || res.data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">Không tìm thấy dữ liệu nào</td></tr>';
+            renderPagination("paginationDuAn", currentPageDuAn, res.tongSoDong || 0, res.pageSize || 12, function (p) { loadData(p); });
             return;
         }
 
@@ -189,6 +194,7 @@ function loadData() {
             `;
             tbody.appendChild(tr);
         });
+        renderPagination("paginationDuAn", currentPageDuAn, res.tongSoDong || 0, res.pageSize || 12, function (p) { loadData(p); });
     });
 }
 

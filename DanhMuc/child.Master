@@ -63,7 +63,7 @@
         <div class="app">
             <aside class="sidebar" id="sidebar">
                 <div class="brand">
-                    <div class="brand-logo">VTT</div>
+                    <div class="brand-logo"><img src="/images/logo.webp"/></div>
                     <div class="brand-name">TRI THỨC <span>- VTT</span></div>
                 </div>
 

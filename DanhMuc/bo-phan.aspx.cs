@@ -92,7 +92,7 @@ namespace VTT.DanhMuc
             }
         }
 
-        [WebMethod(EnableSession = true)]
+        /*[WebMethod(EnableSession = true)]
         public static object GetList(string keyword, object chiNhanhId, string trangThai)
         {
             if (!IsAuthenticated())
@@ -151,6 +151,81 @@ namespace VTT.DanhMuc
                     });
                 }
                 return new { success = true, data = list };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi GetList: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }*/
+        [WebMethod(EnableSession = true)]
+        public static object GetList(string keyword, object chiNhanhId, string trangThai, int pageNumber)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            string myScope = GetPermissionScope(Trang.BP, ChucNang.R);
+            if (myScope == null)
+                return new { success = false, message = "Bạn không có quyền xem Danh mục Bộ phận!" };
+
+            object effChiNhanhId = chiNhanhId;
+            object effPhongBanId = null;
+
+            if (myScope == "PHONGBAN")
+            {
+                effPhongBanId = GetCurrentPhongBanId();
+                effChiNhanhId = null;
+            }
+            else if (myScope == "CHINHANH")
+            {
+                effChiNhanhId = GetCurrentChiNhanhId();
+            }
+
+            string scopeSua = GetPermissionScope(Trang.BP, ChucNang.U);
+            string scopeXoa = GetPermissionScope(Trang.BP, ChucNang.D);
+
+            int pageSize = 12;
+            if (pageNumber <= 0) pageNumber = 1;
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                var pars = new Dictionary<string, object>
+                {
+                    { "@Keyword", string.IsNullOrEmpty(keyword) ? DBNull.Value : (object)keyword },
+                    { "@ChiNhanhID", effChiNhanhId == null ? DBNull.Value : (object)Convert.ToInt32(effChiNhanhId) },
+                    { "@PhongBanID", effPhongBanId == null ? DBNull.Value : (object)Convert.ToInt32(effPhongBanId) },
+                    { "@TrangThai", string.IsNullOrEmpty(trangThai) ? DBNull.Value : (object)Convert.ToByte(trangThai) },
+                    { "@PageNumber", pageNumber },
+                    { "@PageSize", pageSize }
+                };
+
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_BoPhan_GetList", pars);
+
+                int tongSoDong = ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 ? Convert.ToInt32(ds.Tables[0].Rows[0]["TongSoDong"]) : 0;
+                DataTable dt = ds.Tables.Count > 1 ? ds.Tables[1] : ds.Tables[0];
+
+                List<object> list = new List<object>();
+                foreach (DataRow dr in dt.Rows)
+                {
+                    long rowPb = Convert.ToInt64(dr["PhongBanID"]);
+                    long rowPbCha = dr["PhongBanChaID"] == DBNull.Value ? rowPb : Convert.ToInt64(dr["PhongBanChaID"]);
+                    long rowCn = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+
+                    list.Add(new
+                    {
+                        PhongBanID = rowPb,
+                        MaPhongBan = dr["MaPhongBan"].ToString(),
+                        TenPhongBan = dr["TenPhongBan"].ToString(),
+                        TenPhongBanCha = dr["TenPhongBanCha"] == DBNull.Value ? "" : dr["TenPhongBanCha"].ToString(),
+                        TenChiNhanh = dr["TenChiNhanh"] == DBNull.Value ? "Trực thuộc Tổng công ty" : dr["TenChiNhanh"].ToString(),
+                        TrangThai = Convert.ToByte(dr["TrangThai"]),
+                        CanEditRow = EvaluateScope(scopeSua, rowPbCha, rowCn),
+                        CanDeleteRow = EvaluateScope(scopeXoa, rowPbCha, rowCn)
+                    });
+                }
+
+                return new { success = true, data = list, tongSoDong = tongSoDong, pageSize = pageSize };
             }
             catch (Exception ex)
             {

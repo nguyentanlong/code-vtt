@@ -210,3 +210,47 @@ function askReasonAndRetry(message, onConfirm) {
         onConfirm(lyDo);
     });
 }
+/**
+ * Render thanh phân trang dùng chung.
+ * @param {string} containerId - id của <div> chứa thanh phân trang (tạo mới nếu chưa có)
+ * @param {number} currentPage
+ * @param {number} totalRows
+ * @param {number} pageSize
+ * @param {function} onPageChange - callback(newPage) khi người dùng đổi trang
+ */
+function renderPagination(containerId, currentPage, totalRows, pageSize, onPageChange) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+
+    var totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+    if (totalPages <= 1) {
+        container.innerHTML = "";
+        return;
+    }
+
+    var html = '<div style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:16px; flex-wrap:wrap;">';
+
+    html += `<button type="button" class="btn-icon" ${currentPage <= 1 ? "disabled" : ""} onclick="__paginationGoTo('${containerId}', ${currentPage - 1})" style="padding:5px 10px;">‹ Trước</button>`;
+
+    var startPage = Math.max(1, currentPage - 2);
+    var endPage = Math.min(totalPages, startPage + 4);
+    startPage = Math.max(1, endPage - 4);
+
+    for (var p = startPage; p <= endPage; p++) {
+        var isActive = p === currentPage;
+        html += `<button type="button" class="btn-icon" onclick="__paginationGoTo('${containerId}', ${p})"
+            style="padding:5px 10px; ${isActive ? 'background:#2563eb; color:#fff; border-radius:6px;' : ''}">${p}</button>`;
+    }
+
+    html += `<button type="button" class="btn-icon" ${currentPage >= totalPages ? "disabled" : ""} onclick="__paginationGoTo('${containerId}', ${currentPage + 1})" style="padding:5px 10px;">Sau ›</button>`;
+    html += `<span style="margin-left:10px; color:#64748b; font-size:12.5px;">Tổng ${totalRows} bản ghi</span>`;
+    html += '</div>';
+
+    container.innerHTML = html;
+    window["__paginationCallback_" + containerId] = onPageChange;
+}
+
+function __paginationGoTo(containerId, page) {
+    var cb = window["__paginationCallback_" + containerId];
+    if (cb) cb(page);
+}

@@ -210,7 +210,8 @@ namespace VTT.DanhMuc
                 log.Error("Lỗi GetList: " + ex.Message, ex);
                 return new { success = false, message = ex.Message };
             }
-        }*/
+        }
+        chưa phân trang
         [WebMethod(EnableSession = true)]
         public static object GetList(string keyword, object chiNhanhId, object phongBanId, string trangThai)
         {
@@ -239,7 +240,9 @@ namespace VTT.DanhMuc
 
             // Item 5: tài khoản cấp thấp hơn không được thấy tài khoản cấp cao hơn
             // Chỉ áp dụng khi KHÔNG phải Admin toàn hệ thống (myScope != CONGTY) — Admin luôn thấy hết
-            int myCapBac = myScope != "CONGTY" ? GetCurrentCapBac() : int.MaxValue;
+            // int myCapBac = myScope != "CONGTY" ? GetCurrentCapBac() : int.MaxValue;
+            bool apDungLocCapBac = myScope != "CONGTY";
+            int myCapBac = apDungLocCapBac ? GetCurrentCapBac() : 0;
 
             try
             {
@@ -259,10 +262,20 @@ namespace VTT.DanhMuc
                 foreach (DataRow dr in dt.Rows)
                 {
                     // Bỏ qua (ẩn hẳn) nếu người này có cấp bậc CAO HƠN người đang xem (số nhỏ hơn = cao hơn)
-                    int rowCapBac = dr["CapBac"] == DBNull.Value ? int.MaxValue : Convert.ToInt32(dr["CapBac"]);
+                    /*int rowCapBac = dr["CapBac"] == DBNull.Value ? int.MaxValue : Convert.ToInt32(dr["CapBac"]);
                     if (rowCapBac < myCapBac)
                     {
                         continue;
+                    }
+
+                    long rowPhongBanId = dr["PhongBanChinhThucID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanChinhThucID"]);đóng
+                    if (apDungLocCapBac)
+                    {
+                        int rowCapBac = dr["CapBac"] == DBNull.Value ? int.MaxValue : Convert.ToInt32(dr["CapBac"]);
+                        if (rowCapBac < myCapBac)
+                        {
+                            continue;
+                        }
                     }
 
                     long rowPhongBanId = dr["PhongBanChinhThucID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanChinhThucID"]);
@@ -288,6 +301,96 @@ namespace VTT.DanhMuc
                 }
 
                 return new { success = true, data = list };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi GetList: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+        */
+        [WebMethod(EnableSession = true)]
+        public static object GetList(string keyword, object chiNhanhId, object phongBanId, string trangThai, int pageNumber)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            string myScope = GetPermissionScope(Trang.NV, ChucNang.R);
+            if (myScope == null)
+                return new { success = false, message = "Bạn không có quyền xem Danh sách Nhân viên!" };
+
+            object effectiveChiNhanhId = chiNhanhId;
+            object effectivePhongBanId = phongBanId;
+
+            if (myScope == "PHONGBAN")
+            {
+                effectivePhongBanId = GetCurrentPhongBanId();
+                effectiveChiNhanhId = null;
+            }
+            else if (myScope == "CHINHANH")
+            {
+                effectiveChiNhanhId = GetCurrentChiNhanhId();
+            }
+
+            string scopeSua = GetPermissionScope(Trang.NV, ChucNang.U);
+            string scopeXoa = GetPermissionScope(Trang.NV, ChucNang.D);
+
+            bool apDungLocCapBac = myScope != "CONGTY";
+            int myCapBac = apDungLocCapBac ? GetCurrentCapBac() : 0;
+
+            int pageSize = 12;
+            if (pageNumber <= 0) pageNumber = 1;
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                var pars = new Dictionary<string, object>
+                {
+                    { "@Keyword", string.IsNullOrEmpty(keyword) ? DBNull.Value : (object)keyword },
+                    { "@ChiNhanhID", effectiveChiNhanhId == null ? DBNull.Value : (object)Convert.ToInt32(effectiveChiNhanhId) },
+                    { "@PhongBanID", effectivePhongBanId == null ? DBNull.Value : (object)Convert.ToInt32(effectivePhongBanId) },
+                    { "@TrangThai", string.IsNullOrEmpty(trangThai) ? DBNull.Value : (object)Convert.ToByte(trangThai) },
+                    { "@PageNumber", pageNumber },
+                    { "@PageSize", pageSize }
+                };
+
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_NhanVien_GetList", pars);
+
+                int tongSoDong = ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 ? Convert.ToInt32(ds.Tables[0].Rows[0]["TongSoDong"]) : 0;
+                DataTable dt = ds.Tables.Count > 1 ? ds.Tables[1] : ds.Tables[0];
+
+                List<object> list = new List<object>();
+                foreach (DataRow dr in dt.Rows)
+                {
+                    if (apDungLocCapBac)
+                    {
+                        int rowCapBac = dr["CapBac"] == DBNull.Value ? int.MaxValue : Convert.ToInt32(dr["CapBac"]);
+                        if (rowCapBac < myCapBac) continue;
+                    }
+
+                    long rowPhongBanId = dr["PhongBanChinhThucID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanChinhThucID"]);
+                    long rowChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+
+                    bool canEditRow = EvaluateScope(scopeSua, rowPhongBanId, rowChiNhanhId);
+                    bool canDeleteRow = EvaluateScope(scopeXoa, rowPhongBanId, rowChiNhanhId);
+
+                    list.Add(new
+                    {
+                        NhanVienID = dr["NhanVienID"],
+                        HoTen = dr["HoTen"].ToString(),
+                        MaNhanVien = dr["MaNhanVien"].ToString(),
+                        Email = dr["Email"] == DBNull.Value ? "" : dr["Email"].ToString(),
+                        SoDienThoai = dr["SoDienThoai"] == DBNull.Value ? "" : dr["SoDienThoai"].ToString(),
+                        TenPhongBan = dr["TenPhongBan"] == DBNull.Value ? "" : dr["TenPhongBan"].ToString(),
+                        TenChiNhanh = dr["TenChiNhanh"] == DBNull.Value ? "Trực thuộc Tổng công ty" : dr["TenChiNhanh"].ToString(),
+                        TenChucVu = dr["TenChucVu"] == DBNull.Value ? "" : dr["TenChucVu"].ToString(),
+                        TrangThai = Convert.ToByte(dr["TrangThai"]),
+                        CanEditRow = canEditRow,
+                        CanDeleteRow = canDeleteRow
+                    });
+                }
+
+                return new { success = true, data = list, tongSoDong = tongSoDong, pageSize = pageSize };
             }
             catch (Exception ex)
             {
