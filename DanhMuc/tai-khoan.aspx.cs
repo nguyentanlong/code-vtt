@@ -11,43 +11,90 @@ namespace VTT.DanhMuc
     {
         private static readonly ILog log = LogManager.GetLogger(typeof(tai_khoan));
 
-        protected void Page_Load(object sender, EventArgs e)
-        {
-        }
+        protected void Page_Load(object sender, EventArgs e) { }
 
-        private static long GetCurrentCongTyID()
+        private static int? GetMyCapBacTuongUng()
         {
-            var val = System.Web.HttpContext.Current.Session["CongTyID"];
-            if (val == null) return 0;
-            return Convert.ToInt64(val);
+            long taiKhoanId = GetCurrentUserId();
+            ConnectServer db = new ConnectServer();
+            var pars = new Dictionary<string, object> { { "@TaiKhoanID", taiKhoanId } };
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetCapBacTuongUng", pars);
+
+            if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 && ds.Tables[0].Rows[0]["CapBacTuongUng"] != DBNull.Value)
+                return Convert.ToInt32(ds.Tables[0].Rows[0]["CapBacTuongUng"]);
+            return 5; // Không có gán đặc biệt -> mặc định cấp Nhân viên (thấp nhất)
         }
 
         [WebMethod(EnableSession = true)]
-        public static object GetNhanVienOptions()
+        public static object GetPermission()
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            long congTyId = GetCurrentCongTyID();
-            if (congTyId == 0)
-                return new { success = false, message = "Không xác định được Công ty của tài khoản. Vui lòng đăng nhập lại!" };
+            bool canThem = CheckPermission(Trang.TK, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId());
+            string scope = GetPermissionScope(Trang.TK, ChucNang.R);
+            return new { success = true, data = new { canThem = canThem, scope = scope, myChiNhanhId = GetCurrentChiNhanhId() } };
+        }
 
+        [WebMethod(EnableSession = true)]
+        public static object GetChiNhanhOptions()
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            string scope = GetPermissionScope(Trang.TK, ChucNang.R);
+            ConnectServer db = new ConnectServer();
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_NhanVien_GetChiNhanhOptions", new Dictionary<string, object>());
+
+            List<object> list = new List<object>();
+            foreach (DataRow dr in ds.Tables[0].Rows)
+            {
+                long id = Convert.ToInt64(dr["ChiNhanhID"]);
+                if (scope == "CONGTY" || id == GetCurrentChiNhanhId())
+                    list.Add(new { ChiNhanhID = id, TenChiNhanh = dr["TenChiNhanh"].ToString() });
+            }
+            return new { success = true, data = list };
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object GetNhanVienChuaCoTK()
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            string scope = GetPermissionScope(Trang.TK, ChucNang.I);
             try
             {
                 ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object> { { "@CongTyID", congTyId } };
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_GetNhanVienOptions", pars);
+                var pars = new Dictionary<string, object>();
 
+                if (scope == "PHONGBAN")
+                {
+                    pars["@ChiNhanhID"] = DBNull.Value;
+                    pars["@PhongBanID"] = GetCurrentPhongBanId();
+                }
+                else if (scope == "CHINHANH")
+                {
+                    pars["@ChiNhanhID"] = GetCurrentChiNhanhId();
+                    pars["@PhongBanID"] = DBNull.Value;
+                }
+                else
+                {
+                    pars["@ChiNhanhID"] = DBNull.Value;
+                    pars["@PhongBanID"] = DBNull.Value;
+                }
+
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetNhanVienChuaCoTK", pars);
                 List<object> list = new List<object>();
                 foreach (DataRow dr in ds.Tables[0].Rows)
                 {
-                    list.Add(new { NhanVienID = dr["NhanVienID"], HoTen = dr["HoTen"].ToString(), MaNhanVien = dr["MaNhanVien"].ToString() });
+                    list.Add(new { NhanVienID = dr["NhanVienID"], HoTen = dr["HoTen"].ToString(), MaNhanVien = dr["MaNhanVien"].ToString(), TenPhongBan = dr["TenPhongBan"] == DBNull.Value ? "" : dr["TenPhongBan"].ToString() });
                 }
                 return new { success = true, data = list };
             }
             catch (Exception ex)
             {
-                log.Error("Lỗi GetNhanVienOptions: " + ex.Message, ex);
+                log.Error("Lỗi GetNhanVienChuaCoTK: " + ex.Message, ex);
                 return new { success = false, message = ex.Message };
             }
         }
@@ -58,20 +105,19 @@ namespace VTT.DanhMuc
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            long congTyId = GetCurrentCongTyID();
-            if (congTyId == 0)
-                return new { success = false, message = "Không xác định được Công ty của tài khoản. Vui lòng đăng nhập lại!" };
-
             try
             {
+                int? myCapBac = GetMyCapBacTuongUng();
                 ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object> { { "@CongTyID", congTyId } };
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_GetVaiTroOptions", pars);
+                var pars = new Dictionary<string, object> { { "@MinCapBacTuongUng", myCapBac.HasValue ? (object)myCapBac.Value : DBNull.Value } };
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetVaiTroOptions", pars);
 
                 List<object> list = new List<object>();
                 foreach (DataRow dr in ds.Tables[0].Rows)
                 {
-                    list.Add(new { VaiTroID = dr["VaiTroID"], TenVaiTro = dr["TenVaiTro"].ToString() });
+                    string maNq = dr["MaNhomQuyen"].ToString();
+                    bool canGanPhongBan = maNq == "NQ_TRUONGPHONG" || maNq == "NQ_PHOPHONG" || maNq == "NQ_TOTRUONG";
+                    list.Add(new { NhomQuyenID = dr["NhomQuyenID"], MaNhomQuyen = maNq, TenNhomQuyen = dr["TenNhomQuyen"].ToString(), CanGanPhongBan = canGanPhongBan });
                 }
                 return new { success = true, data = list };
             }
@@ -83,28 +129,62 @@ namespace VTT.DanhMuc
         }
 
         [WebMethod(EnableSession = true)]
-        public static object GetList(string keyword, string trangThai)
+        public static object GetPhongBanOptions(object chiNhanhId)
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            long congTyId = GetCurrentCongTyID();
-            if (congTyId == 0)
-                return new { success = false, message = "Không xác định được Công ty của tài khoản. Vui lòng đăng nhập lại!" };
+            ConnectServer db = new ConnectServer();
+            var pars = new Dictionary<string, object> { { "@ChiNhanhID", chiNhanhId == null ? DBNull.Value : (object)Convert.ToInt32(chiNhanhId) } };
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_NhanVien_GetPhongBanOptions", pars);
 
-            log.Info($"GetList called with congTyId: {congTyId}, keyword: {keyword}, trangThai: {trangThai}");
+            List<object> list = new List<object>();
+            foreach (DataRow dr in ds.Tables[0].Rows)
+                list.Add(new { PhongBanID = dr["PhongBanID"], TenPhongBan = dr["TenPhongBan"].ToString() });
+            return new { success = true, data = list };
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object GetList(string keyword, object chiNhanhId, int pageNumber)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            string myScope = GetPermissionScope(Trang.TK, ChucNang.R);
+            if (myScope == null)
+                return new { success = false, message = "Bạn không có quyền xem Danh sách Tài khoản!" };
+
+            object effChiNhanhId = chiNhanhId;
+            object effPhongBanId = null;
+
+            if (myScope == "PHONGBAN")
+            {
+                effPhongBanId = GetCurrentPhongBanId();
+                effChiNhanhId = null;
+            }
+            else if (myScope == "CHINHANH")
+            {
+                effChiNhanhId = GetCurrentChiNhanhId();
+            }
+
+            int pageSize = 12;
+            if (pageNumber <= 0) pageNumber = 1;
+
             try
             {
                 ConnectServer db = new ConnectServer();
                 var pars = new Dictionary<string, object>
                 {
-                    { "@CongTyID", congTyId },
                     { "@Keyword", string.IsNullOrEmpty(keyword) ? DBNull.Value : (object)keyword },
-                    { "@TrangThai", string.IsNullOrEmpty(trangThai) ? DBNull.Value : (object)Convert.ToByte(trangThai) }
+                    { "@ChiNhanhID", effChiNhanhId == null ? DBNull.Value : (object)Convert.ToInt32(effChiNhanhId) },
+                    { "@PhongBanID", effPhongBanId == null ? DBNull.Value : (object)Convert.ToInt32(effPhongBanId) },
+                    { "@PageNumber", pageNumber },
+                    { "@PageSize", pageSize }
                 };
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_GetList", pars);
-                DataTable dt = ds.Tables[0];
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetList", pars);
+                int tongSoDong = ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 ? Convert.ToInt32(ds.Tables[0].Rows[0]["TongSoDong"]) : 0;
+                DataTable dt = ds.Tables.Count > 1 ? ds.Tables[1] : ds.Tables[0];
 
                 List<object> list = new List<object>();
                 foreach (DataRow dr in dt.Rows)
@@ -112,19 +192,16 @@ namespace VTT.DanhMuc
                     list.Add(new
                     {
                         TaiKhoanID = dr["TaiKhoanID"],
-                        Username = dr["Username"].ToString(),
+                        TenDangNhap = dr["TenDangNhap"].ToString(),
                         HoTen = dr["HoTen"].ToString(),
-                        MaNhanVien = dr["MaNhanVien"].ToString(),
-                        // VaiTroNames = dr["VaiTroNames"] == DBNull.Value ? "" : dr["VaiTroNames"].ToString(),
-                        TenVaiTro = dr["TenVaiTro"] == DBNull.Value ? "" : dr["TenVaiTro"].ToString(),
                         TenPhongBan = dr["TenPhongBan"] == DBNull.Value ? "" : dr["TenPhongBan"].ToString(),
-                        LastLoginText = dr["LastLoginText"] == DBNull.Value ? "" : dr["LastLoginText"].ToString(),
-                        IsLocked = Convert.ToBoolean(dr["IsLocked"]),
-                        TrangThai = Convert.ToByte(dr["TrangThai"])
+                        TenVaiTro = dr["TenVaiTro"] == DBNull.Value ? "Nhân viên" : dr["TenVaiTro"].ToString(),
+                        TrangThai = Convert.ToByte(dr["TrangThai"]),
+                        IsLocked = Convert.ToBoolean(dr["IsLocked"])
                     });
                 }
 
-                return new { success = true, data = list };
+                return new { success = true, data = list, tongSoDong = tongSoDong, pageSize = pageSize };
             }
             catch (Exception ex)
             {
@@ -134,199 +211,90 @@ namespace VTT.DanhMuc
         }
 
         [WebMethod(EnableSession = true)]
-        public static object GetById(long id)
+        public static object SaveData(long nhanVienId, string tenDangNhap, string matKhau, long nhomQuyenId, object phongBanId)
         {
             if (!IsAuthenticated())
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
-            log.Info($"GetById called with id: {id}");
+            if (!CheckPermission(Trang.TK, ChucNang.I, GetCurrentPhongBanId(), GetCurrentChiNhanhId()))
+                return new { success = false, message = "Bạn không có quyền tạo Tài khoản!" };
+
+            if (nhanVienId <= 0) return new { success = false, message = "Vui lòng chọn Nhân viên!" };
+            if (string.IsNullOrWhiteSpace(tenDangNhap)) return new { success = false, message = "Vui lòng nhập Tên đăng nhập!" };
+            if (string.IsNullOrWhiteSpace(matKhau) || matKhau.Length < 6) return new { success = false, message = "Mật khẩu phải có ít nhất 6 ký tự!" };
+            // if (nhomQuyenId <= 0) return new { success = false, message = "Vui lòng chọn Vai trò!" };
+
+
+            // Kiểm tra: Vai trò được chọn phải THẤP HƠN cấp của người tạo (chặn cả khi client bị can thiệp)
+            /*int? myCapBac = GetMyCapBacTuongUng();
+            ConnectServer dbCheck = new ConnectServer();
+            DataSet dsNq = dbCheck.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetVaiTroOptions",
+                new Dictionary<string, object> { { "@MinCapBacTuongUng", myCapBac.HasValue ? (object)myCapBac.Value : DBNull.Value } });
+
+            bool hopLe = false;
+            foreach (DataRow dr in dsNq.Tables[0].Rows)
+            {
+                if (Convert.ToInt64(dr["NhomQuyenID"]) == nhomQuyenId) { hopLe = true; break; }
+            }
+            if (!hopLe)
+                return new { success = false, message = "Bạn không được phép gán Vai trò này (chỉ được gán Vai trò thấp hơn cấp của bạn)!" };
+*/
+            // nhomQuyenId = 0 ("Nhân viên mặc định") luôn hợp lệ, bỏ qua kiểm tra cấp bậc
+            if (nhomQuyenId > 0)
+            {
+                int? myCapBac = GetMyCapBacTuongUng();
+                ConnectServer dbCheck = new ConnectServer();
+                DataSet dsNq = dbCheck.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetVaiTroOptions",
+                    new Dictionary<string, object> { { "@MinCapBacTuongUng", myCapBac.HasValue ? (object)myCapBac.Value : DBNull.Value } });
+
+                bool hopLe = false;
+                foreach (DataRow dr in dsNq.Tables[0].Rows)
+                {
+                    if (Convert.ToInt64(dr["NhomQuyenID"]) == nhomQuyenId) { hopLe = true; break; }
+                }
+                if (!hopLe)
+                    return new { success = false, message = "Bạn không được phép gán Vai trò này (chỉ được gán Vai trò thấp hơn cấp của bạn)!" };
+            }
             try
             {
                 ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object> { { "@TaiKhoanID", id } };
+                string hash = libs.libs.HashPassword(matKhau); // dùng đúng hàm hash sẵn có trong hệ thống
 
-                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_GetById", pars);
-                if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
+                var createPars = new Dictionary<string, object>
                 {
-                    DataRow dr = ds.Tables[0].Rows[0];
+                    { "@NhanVienID", nhanVienId },
+                    { "@TenDangNhap", tenDangNhap.Trim() },
+                    { "@MatKhauHash", hash }
+                };
+                DataSet dsCreate = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_Create", createPars);
+                long newTaiKhoanId = Convert.ToInt64(dsCreate.Tables[0].Rows[0]["NewTaiKhoanID"]);
 
-                    List<object> vaiTroIds = new List<object>();
-                    if (ds.Tables.Count > 1)
+/*                var ganPars = new Dictionary<string, object>
+                {
+                    { "@TaiKhoanID", newTaiKhoanId },
+                    { "@NhanVienID", nhanVienId },
+                    { "@NhomQuyenID", nhomQuyenId },
+                    { "@PhongBanID", phongBanId == null ? DBNull.Value : (object)Convert.ToInt32(phongBanId) }
+                };
+                db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GanVaiTro", ganPars);*/
+                // Chỉ gọi gán Vai trò đặc biệt nếu KHÔNG phải "Nhân viên mặc định" (nhomQuyenId=0)
+                if (nhomQuyenId > 0)
+                {
+                    var ganPars = new Dictionary<string, object>
                     {
-                        foreach (DataRow r in ds.Tables[1].Rows)
-                        {
-                            vaiTroIds.Add(r["VaiTroID"]);
-                        }
-                    }
-
-                    var data = new
-                    {
-                        TaiKhoanID = dr["TaiKhoanID"],
-                        NhanVienID = dr["NhanVienID"],
-                        HoTen = dr["HoTen"].ToString(),
-                        Username = dr["Username"].ToString(),
-                        IsLocked = Convert.ToBoolean(dr["IsLocked"]),
-                        TrangThai = dr["TrangThai"],
-                        VaiTroIds = vaiTroIds
+                        { "@TaiKhoanID", newTaiKhoanId },
+                        { "@NhanVienID", nhanVienId },
+                        { "@NhomQuyenID", nhomQuyenId },
+                        { "@PhongBanID", phongBanId == null ? DBNull.Value : (object)Convert.ToInt32(phongBanId) }
                     };
-                    return new { success = true, data = data };
-                }
-                return new { success = false, message = "Không tìm thấy bản ghi." };
-            }
-            catch (Exception ex)
-            {
-                log.Error("Lỗi GetById: " + ex.Message, ex);
-                return new { success = false, message = ex.Message };
-            }
-        }
-
-        /* [WebMethod(EnableSession = true)]
-        public static object SaveData(long taiKhoanId, long nhanVienId, string username, string password, bool isLocked, byte trangThai, string vaiTroIds)
-        {
-            if (!IsAuthenticated())
-                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-
-            if (nhanVienId <= 0)
-                return new { success = false, message = "Vui lòng chọn Nhân viên!" };
-
-            log.Info($"SaveData called with taiKhoanId: {taiKhoanId}, nhanVienId: {nhanVienId}, username: {username}");
-            try
-            {
-                // Chỉ hash mật khẩu khi người dùng có nhập (tạo mới bắt buộc, sửa thì optional)
-                string passwordHash = null;
-                if (!string.IsNullOrEmpty(password))
-                {
-                    // LƯU Ý: giả định VTT.libs.libs có hàm HashPassword tương ứng với VerifyPassword đã dùng ở login.
-                    // Nếu tên hàm thực tế khác, đổi lại đúng tên tại đây.
-                    passwordHash = libs.libs.HashPassword(password);
+                    db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GanVaiTro", ganPars);
                 }
 
-                ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object>
-                {
-                    { "@TaiKhoanID", taiKhoanId },
-                    { "@NhanVienID", nhanVienId },
-                    { "@Username", username.Trim() },
-                    { "@PasswordHash", passwordHash == null ? DBNull.Value : (object)passwordHash },
-                    { "@IsLocked", isLocked },
-                    { "@TrangThai", trangThai }
-                };
-
-                DataSet dsSave = db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_Save", pars);
-                long newId = taiKhoanId;
-                if (dsSave.Tables.Count > 0 && dsSave.Tables[0].Rows.Count > 0)
-                {
-                    newId = Convert.ToInt64(dsSave.Tables[0].Rows[0]["NewTaiKhoanID"]);
-                }
-
-                // Gán lại danh sách Vai trò (Phân quyền)
-                var rolePars = new Dictionary<string, object>
-                {
-                    { "@TaiKhoanID", newId },
-                    { "@VaiTroIDs", string.IsNullOrEmpty(vaiTroIds) ? DBNull.Value : (object)vaiTroIds }
-                };
-                db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_SaveVaiTro", rolePars);
-
-                return new { success = true, message = taiKhoanId == 0 ? "Thêm mới tài khoản thành công!" : "Cập nhật tài khoản thành công!" };
+                return new { success = true, message = "Tạo Tài khoản thành công!" };
             }
             catch (Exception ex)
             {
                 log.Error("Lỗi SaveData: " + ex.Message, ex);
-                return new { success = false, message = ex.Message };
-            }
-        }*/
-
-        [WebMethod(EnableSession = true)]
-        public static object SaveData(long taiKhoanId, long nhanVienId, string username, string password, bool isLocked, byte trangThai, long vaiTroId)
-        {
-            if (!IsAuthenticated())
-                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-
-            if (nhanVienId <= 0)
-                return new { success = false, message = "Vui lòng chọn Nhân viên!" };
-
-            if (vaiTroId <= 0)
-                return new { success = false, message = "Vui lòng chọn Vai trò!" };
-
-            try
-            {
-                string passwordHash = null;
-                if (!string.IsNullOrEmpty(password))
-                {
-                    passwordHash = libs.libs.HashPassword(password);
-                }
-
-                ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object>
-                {
-                    { "@TaiKhoanID", taiKhoanId },
-                    { "@NhanVienID", nhanVienId },
-                    { "@Username", username.Trim() },
-                    { "@PasswordHash", passwordHash == null ? DBNull.Value : (object)passwordHash },
-                    { "@IsLocked", isLocked },
-                    { "@TrangThai", trangThai }
-                };
-
-                DataSet dsSave = db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_Save", pars);
-                long newId = taiKhoanId;
-                if (dsSave.Tables.Count > 0 && dsSave.Tables[0].Rows.Count > 0)
-                {
-                    newId = Convert.ToInt64(dsSave.Tables[0].Rows[0]["NewTaiKhoanID"]);
-                }
-
-                var rolePars = new Dictionary<string, object>
-                {
-                    { "@TaiKhoanID", newId },
-                    { "@VaiTroID", vaiTroId }
-                };
-                db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_SaveVaiTro", rolePars);
-
-                return new { success = true, message = taiKhoanId == 0 ? "Thêm mới tài khoản thành công!" : "Cập nhật tài khoản thành công!" };
-            }
-            catch (Exception ex)
-            {
-                log.Error("Lỗi SaveData: " + ex.Message, ex);
-                return new { success = false, message = ex.Message };
-            }
-        }
-
-        [WebMethod(EnableSession = true)]
-        public static object ToggleLock(long id, bool isLocked)
-        {
-            if (!IsAuthenticated())
-                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-
-            try
-            {
-                ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object> { { "@TaiKhoanID", id }, { "@IsLocked", isLocked } };
-                db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_ToggleLock", pars);
-                return new { success = true, message = isLocked ? "Đã khóa tài khoản!" : "Đã mở khóa tài khoản!" };
-            }
-            catch (Exception ex)
-            {
-                log.Error("Lỗi ToggleLock: " + ex.Message, ex);
-                return new { success = false, message = ex.Message };
-            }
-        }
-
-        [WebMethod(EnableSession = true)]
-        public static object DeleteData(long id)
-        {
-            if (!IsAuthenticated())
-                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
-
-            log.Info($"DeleteData called with id: {id}");
-            try
-            {
-                ConnectServer db = new ConnectServer();
-                var pars = new Dictionary<string, object> { { "@TaiKhoanID", id } };
-                db.ExecuteDatasetStoredProcedure("sp_long_DMTaiKhoan_Delete", pars);
-                return new { success = true, message = "Xóa thành công!" };
-            }
-            catch (Exception ex)
-            {
-                log.Error("Lỗi DeleteData: " + ex.Message, ex);
                 return new { success = false, message = ex.Message };
             }
         }

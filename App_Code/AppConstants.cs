@@ -9,6 +9,7 @@ namespace VTT.libs
         public const string GD = "GIAIDOAN";
         public const string QT = "QUYTRINH";
         public const string BP = "BOPHAN";
+        public const string TK = "TAIKHOAN";
         // Thêm dần khi refactor các trang tiếp theo: GiaiDoan, QuyTrinh, BoPhan...
     }
 
