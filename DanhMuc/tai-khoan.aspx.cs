@@ -145,6 +145,59 @@ namespace VTT.DanhMuc
         }
 
         [WebMethod(EnableSession = true)]
+        public static object ToggleLock(long taiKhoanId, bool isLocked, string lyDo)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            if (taiKhoanId == GetCurrentUserId())
+                return new { success = false, message = "Bạn không thể tự khóa/mở khóa chính tài khoản đang đăng nhập!" };
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                var scopePars = new Dictionary<string, object> { { "@TaiKhoanID", taiKhoanId } };
+                DataSet dsScope = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetScopeInfo", scopePars);
+
+                long targetPhongBanId = 0, targetChiNhanhId = 0;
+                if (dsScope.Tables.Count > 0 && dsScope.Tables[0].Rows.Count > 0)
+                {
+                    DataRow dr = dsScope.Tables[0].Rows[0];
+                    targetPhongBanId = dr["PhongBanID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanID"]);
+                    targetChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+                }
+
+                string dataScope = GetPermissionScope(Trang.TK, ChucNang.U);
+                if (!EvaluateScope(dataScope, targetPhongBanId, targetChiNhanhId))
+                    return new { success = false, message = "Bạn không có quyền khóa/mở khóa tài khoản này!" };
+
+                if (dataScope != "CONGTY" && string.IsNullOrWhiteSpace(lyDo))
+                    return new { success = false, message = "Vui lòng nhập Lý do!", requireReason = true };
+
+                var pars = new Dictionary<string, object> { { "@TaiKhoanID", taiKhoanId }, { "@IsLocked", isLocked } };
+                db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_ToggleLock", pars);
+
+                if (dataScope != "CONGTY")
+                {
+                    var logPars = new Dictionary<string, object>
+                    {
+                        { "@TenBang", "TaiKhoan" }, { "@KhoaChinh", taiKhoanId },
+                        { "@HanhDong", isLocked ? "KHOA" : "MOKHOA" },
+                        { "@NguoiThucHienID", GetCurrentUserId() }, { "@LyDo", lyDo }
+                    };
+                    db.ExecuteDatasetStoredProcedure("sp_v2_GhiLyDoThayDoi", logPars);
+                }
+
+                return new { success = true, message = isLocked ? "Đã khóa tài khoản!" : "Đã mở khóa tài khoản!" };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi ToggleLock: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
         public static object GetList(string keyword, object chiNhanhId, int pageNumber)
         {
             if (!IsAuthenticated())
