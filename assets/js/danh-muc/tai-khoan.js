@@ -58,14 +58,27 @@ function loadData(pageNumber) {
             res.data.forEach(function (item) {
                 var badgeClass = item.TrangThai === 1 ? "badge-success" : "badge-danger";
                 var statusText = item.IsLocked ? "Đã khóa" : (item.TrangThai === 1 ? "Đang hoạt động" : "Ngừng hoạt động");
+
+                var actionHtml = "";
+                if (item.LaChinhMinh) {
+                    actionHtml = '<span style="color:#94a3b8; font-size:12px;">Tài khoản của bạn</span>';
+                } else if (item.CanToggle) {
+                    actionHtml = item.IsLocked
+                        ? `<button type="button" class="btn-icon text-edit" onclick="toggleLock(${item.TaiKhoanID}, false)">Mở khóa</button>`
+                        : `<button type="button" class="btn-icon text-delete" onclick="toggleLock(${item.TaiKhoanID}, true)">Khóa</button>`;
+                } else {
+                    actionHtml = '<span style="color:#94a3b8; font-size:12px;">Chỉ xem</span>';
+                }
+
                 var tr = document.createElement("tr");
                 tr.innerHTML = `
-                    <td><strong>${escapeHtml(item.TenDangNhap)}</strong></td>
-                    <td>${escapeHtml(item.HoTen)}</td>
-                    <td>${escapeHtml(item.TenPhongBan || '')}</td>
-                    <td>${escapeHtml(item.TenVaiTro)}</td>
-                    <td><span class="badge ${badgeClass}">${statusText}</span></td>
-                `;
+                <td><strong>${escapeHtml(item.TenDangNhap)}</strong></td>
+                <td>${escapeHtml(item.HoTen)}</td>
+                <td>${escapeHtml(item.TenPhongBan || '')}</td>
+                <td>${escapeHtml(item.TenVaiTro)}</td>
+                <td><span class="badge ${badgeClass}">${statusText}</span></td>
+                <td style="text-align:center;">${actionHtml}</td>
+            `;
                 tbody.appendChild(tr);
             });
         }
@@ -205,4 +218,31 @@ function saveData() {
 function escapeHtml(text) {
     if (!text) return "";
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+function toggleLock(taiKhoanId, isLocked, lyDo) {
+    var actionText = isLocked ? "khóa" : "mở khóa";
+    showConfirmDialog("Bạn có chắc chắn muốn " + actionText + " tài khoản này?").then(function (ok) {
+        if (!ok) return;
+
+        fetch("tai-khoan.aspx/ToggleLock", {
+            method: "POST",
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+            body: JSON.stringify({ taiKhoanId: taiKhoanId, isLocked: isLocked, lyDo: lyDo || "" })
+        })
+            .then(response => response.json())
+            .then(res => {
+                var result = res.d;
+                if (result.success) {
+                    showToast(result.message, "success");
+                    loadData();
+                } else if (result.requireReason) {
+                    askReasonAndRetry(result.message, function (nhapLyDo) {
+                        toggleLock(taiKhoanId, isLocked, nhapLyDo);
+                    });
+                } else {
+                    showToast(result.message, "error");
+                }
+            })
+            .catch(function () { showToast("Lỗi kết nối máy chủ!", "error"); });
+    });
 }

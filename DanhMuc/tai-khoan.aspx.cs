@@ -242,6 +242,9 @@ namespace VTT.DanhMuc
                 List<object> list = new List<object>();
                 foreach (DataRow dr in dt.Rows)
                 {
+                    long rowPhongBanId = dr["PhongBanChinhThucID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanChinhThucID"]);
+                    long rowChiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+                    bool canToggle = EvaluateScope(scopeSua, rowPhongBanId, rowChiNhanhId);
                     list.Add(new
                     {
                         TaiKhoanID = dr["TaiKhoanID"],
@@ -250,7 +253,9 @@ namespace VTT.DanhMuc
                         TenPhongBan = dr["TenPhongBan"] == DBNull.Value ? "" : dr["TenPhongBan"].ToString(),
                         TenVaiTro = dr["TenVaiTro"] == DBNull.Value ? "Nhân viên" : dr["TenVaiTro"].ToString(),
                         TrangThai = Convert.ToByte(dr["TrangThai"]),
-                        IsLocked = Convert.ToBoolean(dr["IsLocked"])
+                        IsLocked = Convert.ToBoolean(dr["IsLocked"]),
+                        CanToggle = canToggle,
+                        LaChinhMinh = Convert.ToInt64(dr["TaiKhoanID"]) == GetCurrentUserId()
                     });
                 }
 

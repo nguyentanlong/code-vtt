@@ -35,6 +35,7 @@
                             <th style="width: 160px;">Phòng ban</th>
                             <th style="width: 150px;">Vai trò</th>
                             <th style="width: 130px;">Trạng thái</th>
+                            <th style="width: 120px; text-align: center;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="tbodyTaiKhoan"></tbody>
