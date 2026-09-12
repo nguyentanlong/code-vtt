@@ -6332,3 +6332,25 @@ BEGIN
     UPDATE dbo.DuAn SET TrangThaiPheDuyet = 2 WHERE DuAnID = @DuAnID;
 END;
 GO
+CREATE OR ALTER PROCEDURE dbo.sp_v2_TaiKhoan_GetScopeInfo
+    @TaiKhoanID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT tk.TaiKhoanID, nv.PhongBanChinhThucID AS PhongBanID, pb.ChiNhanhID
+    FROM dbo.TaiKhoan tk
+    INNER JOIN dbo.NhanVien nv ON nv.NhanVienID = tk.NhanVienID
+    LEFT JOIN dbo.PhongBan pb ON pb.PhongBanID = nv.PhongBanChinhThucID
+    WHERE tk.TaiKhoanID = @TaiKhoanID;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_v2_TaiKhoan_ToggleLock
+    @TaiKhoanID INT,
+    @IsLocked BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.TaiKhoan SET IsLocked = @IsLocked WHERE TaiKhoanID = @TaiKhoanID;
+END;
+GO
