@@ -6219,3 +6219,116 @@ BEGIN
 END;
 
 GO
+-- 1. Thêm cột theo dõi Bước hiện tại + Trạng thái phê duyệt
+ALTER TABLE dbo.DuAn ADD BuocHienTaiID BIGINT NULL REFERENCES dbo.BuocQuyTrinh(BuocID);
+ALTER TABLE dbo.DuAn ADD TrangThaiPheDuyet TINYINT DEFAULT 0; -- 0=Chưa gửi, 1=Đang chờ duyệt, 2=Bị từ chối, 3=Đã duyệt xong
+GO
+
+-- 2. Gửi duyệt (Bắt đầu hoặc Gửi duyệt lại sau khi bị từ chối) -> đưa về Bước đầu tiên nếu chưa từng gửi, 
+--    hoặc GIỮ NGUYÊN đúng Bước đang bị từ chối (theo yêu cầu: dừng đúng bước đó, sửa xong gửi lại đúng bước đó)
+CREATE OR ALTER PROCEDURE dbo.sp_v2_DuAn_GuiDuyet
+    @DuAnID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @QuyTrinhID BIGINT = (SELECT QuyTrinhID FROM dbo.DuAn WHERE DuAnID = @DuAnID);
+    IF @QuyTrinhID IS NULL
+    BEGIN
+        RAISERROR(N'Dự án này chưa được gán Quy trình phê duyệt!', 16, 1);
+        RETURN;
+    END
+
+    DECLARE @BuocHienTai BIGINT = (SELECT BuocHienTaiID FROM dbo.DuAn WHERE DuAnID = @DuAnID);
+
+    IF @BuocHienTai IS NULL
+    BEGIN
+        -- Lần đầu gửi duyệt -> lấy Bước đầu tiên (ThuTu nhỏ nhất)
+        SET @BuocHienTai = (
+            SELECT TOP 1 BuocID FROM dbo.BuocQuyTrinh 
+            WHERE QuyTrinhID = @QuyTrinhID ORDER BY ThuTu ASC
+        );
+    END
+    -- Nếu đã có BuocHienTaiID (do bị từ chối trước đó) -> giữ nguyên, không đổi
+
+    UPDATE dbo.DuAn
+    SET BuocHienTaiID = @BuocHienTai, TrangThaiPheDuyet = 1
+    WHERE DuAnID = @DuAnID;
+
+    SELECT @BuocHienTai AS BuocHienTaiID;
+END;
+GO
+
+-- 3. Lấy thông tin Bước hiện tại của 1 Dự án (dùng để hiển thị nút Duyệt/Từ chối đúng người)
+CREATE OR ALTER PROCEDURE dbo.sp_v2_DuAn_GetBuocHienTai
+    @DuAnID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT da.DuAnID, da.QuyTrinhID, da.BuocHienTaiID, da.TrangThaiPheDuyet,
+           b.TenBuoc, b.ThuTu, b.NhomQuyenDuyetID, nq.TenNhomQuyen, b.HanhDong,
+           qt.TenQuyTrinh
+    FROM dbo.DuAn da
+    LEFT JOIN dbo.BuocQuyTrinh b ON b.BuocID = da.BuocHienTaiID
+    LEFT JOIN dbo.NhomQuyen nq ON nq.NhomQuyenID = b.NhomQuyenDuyetID
+    LEFT JOIN dbo.QuyTrinh qt ON qt.QuyTrinhID = da.QuyTrinhID
+    WHERE da.DuAnID = @DuAnID;
+END;
+GO
+
+-- 4. Duyệt (đồng ý) -> ghi log, chuyển sang Bước kế tiếp hoặc hoàn tất
+CREATE OR ALTER PROCEDURE dbo.sp_v2_DuAn_Duyet
+    @DuAnID INT,
+    @NguoiXuLyID INT,
+    @LyDo NVARCHAR(500) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @BuocHienTai BIGINT = (SELECT BuocHienTaiID FROM dbo.DuAn WHERE DuAnID = @DuAnID);
+    DECLARE @QuyTrinhID BIGINT = (SELECT QuyTrinhID FROM dbo.DuAn WHERE DuAnID = @DuAnID);
+    DECLARE @ThuTuHienTai INT = (SELECT ThuTu FROM dbo.BuocQuyTrinh WHERE BuocID = @BuocHienTai);
+
+    -- Ghi log
+    INSERT INTO dbo.LichSuQuyTrinh (QuyTrinhID, ObjectType, ObjectID, BuocID, NguoiXuLyID, KetQua, LyDo, NgayXuLy)
+    VALUES (@QuyTrinhID, 'DuAn', @DuAnID, @BuocHienTai, @NguoiXuLyID, 1, @LyDo, SYSUTCDATETIME());
+
+    -- Tìm Bước kế tiếp (ThuTu lớn hơn, nhỏ nhất)
+    DECLARE @BuocKeTiep BIGINT = (
+        SELECT TOP 1 BuocID FROM dbo.BuocQuyTrinh 
+        WHERE QuyTrinhID = @QuyTrinhID AND ThuTu > @ThuTuHienTai 
+        ORDER BY ThuTu ASC
+    );
+
+    IF @BuocKeTiep IS NOT NULL
+    BEGIN
+        -- Còn Bước tiếp theo -> chuyển sang, vẫn ở trạng thái "Đang chờ duyệt"
+        UPDATE dbo.DuAn SET BuocHienTaiID = @BuocKeTiep, TrangThaiPheDuyet = 1 WHERE DuAnID = @DuAnID;
+    END
+    ELSE
+    BEGIN
+        -- Đây là Bước cuối cùng -> hoàn tất toàn bộ Quy trình
+        UPDATE dbo.DuAn SET TrangThaiPheDuyet = 3 WHERE DuAnID = @DuAnID;
+    END
+END;
+GO
+
+-- 5. Từ chối -> ghi log, dừng lại đúng Bước đó, đánh dấu "Bị từ chối"
+CREATE OR ALTER PROCEDURE dbo.sp_v2_DuAn_TuChoi
+    @DuAnID INT,
+    @NguoiXuLyID INT,
+    @LyDo NVARCHAR(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @BuocHienTai BIGINT = (SELECT BuocHienTaiID FROM dbo.DuAn WHERE DuAnID = @DuAnID);
+    DECLARE @QuyTrinhID BIGINT = (SELECT QuyTrinhID FROM dbo.DuAn WHERE DuAnID = @DuAnID);
+
+    INSERT INTO dbo.LichSuQuyTrinh (QuyTrinhID, ObjectType, ObjectID, BuocID, NguoiXuLyID, KetQua, LyDo, NgayXuLy)
+    VALUES (@QuyTrinhID, 'DuAn', @DuAnID, @BuocHienTai, @NguoiXuLyID, 0, @LyDo, SYSUTCDATETIME());
+
+    -- Dừng lại đúng Bước này, đánh dấu Bị từ chối (BuocHienTaiID GIỮ NGUYÊN, không đổi)
+    UPDATE dbo.DuAn SET TrangThaiPheDuyet = 2 WHERE DuAnID = @DuAnID;
+END;
+GO
