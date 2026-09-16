@@ -198,6 +198,7 @@ namespace VTT.DanhMuc
                     { "@ChiNhanhID", effectiveChiNhanhId == null ? DBNull.Value : (object)Convert.ToInt32(effectiveChiNhanhId) },
                     { "@PhongBanID", effectivePhongBanId == null ? DBNull.Value : (object)Convert.ToInt32(effectivePhongBanId) },
                     { "@TrangThai", string.IsNullOrEmpty(trangThai) ? DBNull.Value : (object)Convert.ToByte(trangThai) },
+                    { "@TaiKhoanID", GetCurrentUserId() },
                     { "@PageNumber", pageNumber },
                     { "@PageSize", pageSize }
                 };

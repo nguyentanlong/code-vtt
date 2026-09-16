@@ -1,0 +1,161 @@
+DECLARE @Now AS DATETIME2 = SYSUTCDATETIME();
+
+DECLARE @UserA AS VARCHAR (100) = 'truongphong_ketoan_hn';
+
+DECLARE @UserB AS VARCHAR (100) = 'truongphong_kt_hn';
+
+-- ============================================================
+-- BƯỚC 1: Xác định "phạm vi hiện tại" của từng tài khoản
+-- (công ty, phòng ban chính thức, và các phân công tạm thời đang hiệu lực)
+-- ============================================================
+WITH     TaiKhoanCanCheck
+AS       (SELECT tk.TaiKhoanID,
+                 tk.TenDangNhap,
+                 nv.NhanVienID,
+                 nv.CongTyID,
+                 nv.PhongBanChinhThucID,
+                 pb.ChiNhanhID AS ChiNhanhChinhThuc
+          FROM   TaiKhoan AS tk
+                 INNER JOIN
+                 NhanVien AS nv
+                 ON nv.NhanVienID = tk.NhanVienID
+                 LEFT OUTER JOIN
+                 PhongBan AS pb
+                 ON pb.PhongBanID = nv.PhongBanChinhThucID
+          WHERE  tk.TenDangNhap IN (@UserA, @UserB)),
+         PhanCongHienTai
+AS       (-- các phân công tạm thời đang hiệu lực (VD: biệt phái công trình)
+          SELECT pc.*
+          FROM   PhanCongNhanVien AS pc
+                 INNER JOIN
+                 TaiKhoanCanCheck AS t
+                 ON t.NhanVienID = pc.NhanVienID
+          WHERE  pc.TrangThai = 1
+                 AND pc.TuNgay <= @Now
+                 AND (pc.DenNgay IS NULL
+                      OR pc.DenNgay >= @Now)),
+-- ============================================================
+-- BƯỚC 2: Tìm tất cả NhomQuyen áp dụng cho từng tài khoản
+-- (khớp theo đúng phạm vi: công ty / chi nhánh / phòng ban / công trình / phân công / hoặc gán riêng)
+-- ============================================================
+         NhomQuyenApDung
+AS       (SELECT DISTINCT t.TaiKhoanID,
+                          t.TenDangNhap,
+                          g.NhomQuyenID,
+                          lpv.Priority,
+                          g.ScopeType
+          FROM   TaiKhoanCanCheck AS t
+                 INNER JOIN
+                 GanNhomQuyen AS g
+                 ON g.TrangThai = 1
+                    AND (g.TuNgay IS NULL
+                         OR g.TuNgay <= @Now)
+                    AND (g.DenNgay IS NULL
+                         OR g.DenNgay >= @Now)
+                 INNER JOIN
+                 LoaiPhamVi AS lpv
+                 ON lpv.ScopeType = g.ScopeType
+                 LEFT OUTER JOIN
+                 PhanCongHienTai AS pc
+                 ON pc.NhanVienID = t.NhanVienID
+          WHERE  (g.ScopeType = 'CONGTY'
+                  AND g.CongTyID = t.CongTyID)
+                 OR (g.ScopeType = 'CHINHANH'
+                     AND g.ChiNhanhID IN (t.ChiNhanhChinhThuc, pc.ChiNhanhID))
+                 OR (g.ScopeType = 'PHONGBAN'
+                     AND g.PhongBanID IN (t.PhongBanChinhThucID, pc.PhongBanID))
+                 OR (g.ScopeType = 'CONGTRINH'
+                     AND g.CongTrinhID = pc.CongTrinhID)
+                 OR (g.ScopeType = 'PHANCONG'
+                     AND g.PhanCongID = pc.PhanCongID)
+                 OR (g.ScopeType = 'TAIKHOAN'
+                     AND g.TaiKhoanID = t.TaiKhoanID)),
+-- ============================================================
+-- BƯỚC 3: Lấy quyền cụ thể từ các nhóm, GIỮ LẠI Priority cao nhất khi trùng QuyenID
+-- (quyền từ nhóm nào có phạm vi cụ thể hơn thì thắng)
+-- ============================================================
+         QuyenTuNhom
+AS       (SELECT nqa.TaiKhoanID,
+                 nqa.TenDangNhap,
+                 nqq.QuyenID,
+                 nqq.GiaTri,
+                 nqa.Priority
+          FROM   NhomQuyenApDung AS nqa
+                 INNER JOIN
+                 NhomQuyen_Quyen AS nqq
+                 ON nqq.NhomQuyenID = nqa.NhomQuyenID),
+         QuyenTuNhomFinal
+AS       (-- mỗi tài khoản + mỗi QuyenID chỉ giữ dòng có Priority cao nhất
+          SELECT *,
+                 ROW_NUMBER() OVER (PARTITION BY TaiKhoanID, QuyenID ORDER BY Priority DESC) AS rn
+          FROM   QuyenTuNhom),
+-- ============================================================
+-- BƯỚC 4: Quyền gán trực tiếp (TaiKhoan_Quyen) — LUÔN thắng quyền từ nhóm
+-- ============================================================
+         QuyenTrucTiep
+AS       (SELECT tqq.TaiKhoanID,
+                 tqq.QuyenID,
+                 tqq.GiaTri
+          FROM   TaiKhoan_Quyen AS tqq
+          WHERE  tqq.TrangThai = 1
+                 AND (tqq.TuNgay IS NULL
+                      OR tqq.TuNgay <= @Now)
+                 AND (tqq.DenNgay IS NULL
+                      OR tqq.DenNgay >= @Now)),
+-- ============================================================
+-- BƯỚC 5: Kết quả CUỐI CÙNG — ưu tiên quyền trực tiếp, nếu không có thì lấy từ nhóm
+-- ============================================================
+         QuyenCuoiCung
+AS       (SELECT t.TaiKhoanID,
+                 t.TenDangNhap,
+                 q.QuyenID,
+                 COALESCE (qt.GiaTri, qn.GiaTri) AS GiaTriCuoiCung,
+                 CASE WHEN qt.GiaTri IS NOT NULL THEN N'Gán trực tiếp' ELSE N'Từ nhóm quyền' END AS Nguon
+          FROM   TaiKhoanCanCheck AS t
+                 INNER JOIN
+                 Quyen AS q
+                 ON q.TrangThai = 1
+                 LEFT OUTER JOIN
+                 QuyenTrucTiep AS qt
+                 ON qt.TaiKhoanID = t.TaiKhoanID
+                    AND qt.QuyenID = q.QuyenID
+                 LEFT OUTER JOIN
+                 QuyenTuNhomFinal AS qn
+                 ON qn.TaiKhoanID = t.TaiKhoanID
+                    AND qn.QuyenID = q.QuyenID
+                    AND qn.rn = 1
+          WHERE  qt.GiaTri IS NOT NULL
+                 OR qn.GiaTri IS NOT NULL) -- chỉ giữ quyền có nguồn
+SELECT   -- ============================================================
+         -- KẾT QUẢ: So sánh quyền giữa 2 tài khoản
+         -- ============================================================
+         tr.TrangID,
+         tr.TenTrang,
+         cn.TenChucNang,
+         q.DataScope,
+         a.GiaTriCuoiCung AS KeToan_GiaTri,
+         a.Nguon AS KeToan_Nguon,
+         b.GiaTriCuoiCung AS KyThuat_GiaTri,
+         b.Nguon AS KyThuat_Nguon,
+         CASE WHEN a.GiaTriCuoiCung IS NOT NULL
+                   AND b.GiaTriCuoiCung IS NOT NULL
+                   AND a.GiaTriCuoiCung = b.GiaTriCuoiCung THEN N'Giống nhau' WHEN a.GiaTriCuoiCung IS NOT NULL
+                                                                                   AND b.GiaTriCuoiCung IS NOT NULL THEN N'Khác nhau (ALLOW/DENY khác)' WHEN a.GiaTriCuoiCung IS NOT NULL THEN N'Chỉ kế toán có' ELSE N'Chỉ kỹ thuật có' END AS SoSanh
+FROM     Quyen AS q
+         INNER JOIN
+         ChucNang AS cn
+         ON cn.ChucNangID = q.ChucNangID
+         INNER JOIN
+         Trang AS tr
+         ON tr.TrangID = cn.TrangID
+         LEFT OUTER JOIN
+         QuyenCuoiCung AS a
+         ON a.QuyenID = q.QuyenID
+            AND a.TenDangNhap = @UserA
+         LEFT OUTER JOIN
+         QuyenCuoiCung AS b
+         ON b.QuyenID = q.QuyenID
+            AND b.TenDangNhap = @UserB
+WHERE    a.QuyenID IS NOT NULL
+         OR b.QuyenID IS NOT NULL
+ORDER BY SoSanh, tr.TenTrang, cn.TenChucNang;

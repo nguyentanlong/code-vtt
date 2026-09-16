@@ -109,16 +109,6 @@ function loadNhanVienOptions() {
 
 var vaiTroOptionsCache = [];
 
-/*function loadVaiTroOptions() {
-    return callWebMethod("GetVaiTroOptions", {}, function (res) {
-        vaiTroOptionsCache = res.data || [];
-        var ddl = document.getElementById("ddlVaiTro");
-        ddl.innerHTML = '<option value="">-- Chọn vai trò --</option>';
-        vaiTroOptionsCache.forEach(function (vt) {
-            ddl.innerHTML += `<option value="${vt.NhomQuyenID}" data-can-gan-pb="${vt.CanGanPhongBan}">${escapeHtml(vt.TenNhomQuyen)}</option>`;
-        });
-    });
-}*/
 function loadVaiTroOptions() {
     return callWebMethod("GetVaiTroOptions", {}, function (res) {
         vaiTroOptionsCache = res.data || [];
@@ -155,34 +145,6 @@ function closeModal() {
     document.getElementById("modalTaiKhoan").style.display = "none";
 }
 
-/*function saveData() {
-    var nhanVienId = document.getElementById("ddlNhanVien").value;
-    var tenDangNhap = document.getElementById("txtTenDangNhap").value.trim();
-    var matKhau = document.getElementById("txtMatKhau").value;
-    var nhomQuyenId = document.getElementById("ddlVaiTro").value;
-    var phongBanId = document.getElementById("ddlPhongBanVaiTro").value;
-
-    if (!nhanVienId) { showToast("Vui lòng chọn Nhân viên!", "error"); return; }
-    if (!tenDangNhap) { showToast("Vui lòng nhập Tên đăng nhập!", "error"); return; }
-    if (!matKhau || matKhau.length < 6) { showToast("Mật khẩu phải có ít nhất 6 ký tự!", "error"); return; }
-    if (!nhomQuyenId) { showToast("Vui lòng chọn Vai trò!", "error"); return; }
-
-    var selectedOption = document.getElementById("ddlVaiTro").options[document.getElementById("ddlVaiTro").selectedIndex];
-    var canGanPb = selectedOption.getAttribute("data-can-gan-pb") === "true";
-    if (canGanPb && !phongBanId) { showToast("Vui lòng chọn Phòng ban áp dụng Vai trò!", "error"); return; }
-
-    callWebMethod("SaveData", {
-        nhanVienId: parseInt(nhanVienId),
-        tenDangNhap: tenDangNhap,
-        matKhau: matKhau,
-        nhomQuyenId: parseInt(nhomQuyenId),
-        phongBanId: phongBanId ? parseInt(phongBanId) : null
-    }, function (res) {
-        showToast(res.message, "success");
-        closeModal();
-        loadData();
-    });
-}*/
 function saveData() {
     var nhanVienId = document.getElementById("ddlNhanVien").value;
     var tenDangNhap = document.getElementById("txtTenDangNhap").value.trim();

@@ -129,7 +129,7 @@
                                     </svg>
                                 </div>
                                 <div id="userDropdownMenu" style="display:none; position:fixed; right:0; top:calc(100% + 8px); background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.12); min-width:180px; z-index:1000; overflow:hidden;">
-                                    <a href="../thong-tin-tai-khoan.aspx" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color:#334155; text-decoration:none; font-size:14px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                                    <a href="<%= ResolveUrl("~/DanhMuc/thong-tin-tai-khoan.aspx") %>" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color:#334155; text-decoration:none; font-size:14px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
                                         <i class="fa fa-user"></i> Thông tin tài khoản
                                     </a>
                                     <a href="../DanhMuc/quan-ly-thiet-bi.aspx" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color:#334155; text-decoration:none; font-size:14px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
