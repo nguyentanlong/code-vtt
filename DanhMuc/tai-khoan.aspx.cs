@@ -204,6 +204,7 @@ namespace VTT.DanhMuc
                 return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
 
             string myScope = GetPermissionScope(Trang.TK, ChucNang.R);
+            int? myCapBac = GetMyCapBacTuongUng();
             if (myScope == null)
                 return new { success = false, message = "Bạn không có quyền xem Danh sách Tài khoản!" };
 
@@ -231,6 +232,7 @@ namespace VTT.DanhMuc
                     { "@Keyword", string.IsNullOrEmpty(keyword) ? DBNull.Value : (object)keyword },
                     { "@ChiNhanhID", effChiNhanhId == null ? DBNull.Value : (object)Convert.ToInt32(effChiNhanhId) },
                     { "@PhongBanID", effPhongBanId == null ? DBNull.Value : (object)Convert.ToInt32(effPhongBanId) },
+                    { "@MinCapBacTuongUng", myCapBac.HasValue ? (object)myCapBac.Value : DBNull.Value }, // THÊM
                     { "@PageNumber", pageNumber },
                     { "@PageSize", pageSize }
                 };
@@ -240,6 +242,7 @@ namespace VTT.DanhMuc
                 DataTable dt = ds.Tables.Count > 1 ? ds.Tables[1] : ds.Tables[0];
 
                 List<object> list = new List<object>();
+                string scopeSua = GetPermissionScope(Trang.TK, ChucNang.U);
                 foreach (DataRow dr in dt.Rows)
                 {
                     long rowPhongBanId = dr["PhongBanChinhThucID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanChinhThucID"]);

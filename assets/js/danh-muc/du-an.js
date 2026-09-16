@@ -129,7 +129,12 @@ var trangThaiConfig = {
     2: { text: "Hoàn thành", cssClass: "badge-status-ht" },
     3: { text: "Tạm dừng", cssClass: "badge-danger" }
 };
-
+var trangThaiPheDuyetConfig = {
+    0: { text: "Chưa gửi duyệt", cssClass: "badge-status-chua" },
+    1: { text: "Đang chờ duyệt", cssClass: "badge-status-dang" },
+    2: { text: "Bị từ chối", cssClass: "badge-danger" },
+    3: { text: "Đã duyệt xong", cssClass: "badge-status-ht" }
+};
 function loadData(pageNumber) {
     if (pageNumber) currentPageDuAn = pageNumber;
 
@@ -157,6 +162,7 @@ function loadData(pageNumber) {
         res.data.forEach(function (item, index) {
             var st = trangThaiConfig[item.TrangThaiDuAn] || trangThaiConfig[0];
 
+            var pd = trangThaiPheDuyetConfig[item.TrangThaiPheDuyet || 0];
             var tenHienThi = escapeHtml(item.TenDuAn);
             if (item.LaNguoiTao) {
                 tenHienThi += ' <span class="badge badge-success" style="margin-left:6px;">Của bạn</span>';
@@ -181,6 +187,27 @@ function loadData(pageNumber) {
                     </button>
                 `;
             }
+            if (item.CanGuiDuyet) {
+                actionsHtml += `
+                <button type="button" class="btn-icon text-info" onclick="guiDuyetDuAn(${item.DuAnID})" title="Gửi duyệt">
+                    <i class="fa fa-paper-plane"></i> Gửi duyệt
+                </button>
+            `;
+            }
+            if (item.CanDuyet) {
+                actionsHtml += `
+                <button type="button" class="btn-icon text-save" onclick="duyetDuAn(${item.DuAnID})" title="Duyệt">
+                    <i class="fa fa-check"></i> Duyệt
+                </button>
+            `;
+            }
+            if (item.CanTuChoi) {
+                actionsHtml += `
+                <button type="button" class="btn-icon text-delete" onclick="tuChoiDuAn(${item.DuAnID})" title="Từ chối">
+                    <i class="fa fa-times"></i> Từ chối
+                </button>
+            `;
+            }
 
             var tr = document.createElement("tr");
             tr.innerHTML = `
@@ -189,7 +216,10 @@ function loadData(pageNumber) {
                 <td>${tenHienThi}</td>
                 <td>${escapeHtml(item.TenPhongBan || '')}</td>
                 <td style="text-align:center;">${item.TienDo}%</td>
-                <td><span class="badge-status ${st.cssClass}">${st.text}</span></td>
+                <td>
+                    <span class="badge-status ${st.cssClass}">${st.text}</span><br/>
+                    <span class="badge-status ${pd.cssClass}" style="margin-top:4px; display:inline-block;" title="${item.TenBuocHienTai ? escapeHtml(item.TenBuocHienTai) : ''}">${pd.text}</span>
+                </td>
                 <td style="text-align:center; white-space:nowrap;">${actionsHtml}</td>
             `;
             tbody.appendChild(tr);
@@ -329,42 +359,66 @@ function deleteData(id, lyDo) {
     });
 }
 
-/*function askReasonAndRetry(message, onConfirm) {
-    var backdrop = document.createElement("div");
-    backdrop.className = "ui-dialog-backdrop";
-    backdrop.innerHTML = `
-        <div class="ui-dialog-box">
-            <div class="ui-dialog-icon warning">!</div>
-            <div class="ui-dialog-message">${message}</div>
-            <textarea id="txtLyDoInput" class="form-control" rows="3" placeholder="Nhập lý do..." style="margin-top:8px;"></textarea>
-            <div class="ui-dialog-actions" style="margin-top:14px;">
-                <button type="button" class="ui-dialog-btn ui-dialog-btn-secondary" id="btnHuyLyDo">Hủy bỏ</button>
-                <button type="button" class="ui-dialog-btn ui-dialog-btn-primary" id="btnXacNhanLyDo">Xác nhận</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(backdrop);
-    requestAnimationFrame(function () { backdrop.classList.add("show"); 
-
-    });
-
-    function close() {
-        backdrop.classList.remove("show");
-        setTimeout(function () { backdrop.remove(); }, 180);
-    }
-
-    backdrop.querySelector("#btnHuyLyDo").addEventListener("click", close);
-    backdrop.querySelector("#btnXacNhanLyDo").addEventListener("click", function () {
-        var lyDo = backdrop.querySelector("#txtLyDoInput").value.trim();
-        if (!lyDo) {
-            showToast("Vui lòng nhập Lý do!", "error");
-            return;
-        }
-        close();
-        onConfirm(lyDo);
+function guiDuyetDuAn(id) {
+    showConfirmDialog("Gửi duyệt Dự án này?").then(function (ok) {
+        if (!ok) return;
+        callWebMethod("GuiDuyet", { duAnId: id }, function (res) {
+            showToast(res.message, "success");
+            loadData();
+        });
     });
 }
-*/
+
+function duyetDuAn(id, lyDo) {
+    fetch("du-an.aspx/Duyet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ duAnId: id, lyDo: lyDo || "" })
+    })
+        .then(response => response.json())
+        .then(res => {
+            var result = res.d;
+            if (result.success) {
+                showToast(result.message, "success");
+                loadData();
+            } else if (result.requireReason) {
+                askReasonAndRetry(result.message, function (nhapLyDo) {
+                    duyetDuAn(id, nhapLyDo);
+                });
+            } else {
+                showToast(result.message, "error");
+            }
+        })
+        .catch(function () {
+            showToast("Lỗi kết nối máy chủ!", "error");
+        });
+}
+
+function tuChoiDuAn(id, lyDo) {
+    fetch("du-an.aspx/TuChoi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ duAnId: id, lyDo: lyDo || "" })
+    })
+        .then(response => response.json())
+        .then(res => {
+            var result = res.d;
+            if (result.success) {
+                showToast(result.message, "success");
+                loadData();
+            } else if (result.requireReason) {
+                askReasonAndRetry(result.message, function (nhapLyDo) {
+                    tuChoiDuAn(id, nhapLyDo);
+                });
+            } else {
+                showToast(result.message, "error");
+            }
+        })
+        .catch(function () {
+            showToast("Lỗi kết nối máy chủ!", "error");
+        });
+}
+
 function escapeHtml(text) {
     if (!text) return "";
     return text

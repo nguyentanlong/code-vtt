@@ -210,6 +210,7 @@ namespace VTT.DanhMuc
                 long myUserId = GetCurrentUserId();
 
                 List<object> list = new List<object>();
+                // var (myNhomQuyenIds, isAdmin) = GetMyNhomQuyenDuyet(); // tính 1 lần trước vòng lặp
                 foreach (DataRow dr in dt.Rows)
                 {
                     long rowPhongBanId = Convert.ToInt64(dr["PhongBanID"]);
@@ -219,6 +220,22 @@ namespace VTT.DanhMuc
                     bool canEditRow = EvaluateScope(scopeSua, rowPhongBanId, rowChiNhanhId, rowNguoiTaoId);
                     bool canDeleteRow = EvaluateScope(scopeXoa, rowPhongBanId, rowChiNhanhId, rowNguoiTaoId);
 
+                    byte trangThaiPheDuyet = dr["TrangThaiPheDuyet"] == DBNull.Value ? (byte)0 : Convert.ToByte(dr["TrangThaiPheDuyet"]);
+                    object nhomQuyenDuyetIdObj = dr["NhomQuyenDuyetID"];
+                    bool laNguoiTao = rowNguoiTaoId.HasValue && rowNguoiTaoId.Value == myUserId;
+
+                    long rowDuAnId = Convert.ToInt64(dr["DuAnID"]);
+                    var (canDuyetRow, isAdminRow) = KiemTraQuyenDuyet(rowDuAnId, myUserId);
+                    // byte trangThaiPheDuyet = ...;
+                    bool canGuiDuyet = (trangThaiPheDuyet == 0 || trangThaiPheDuyet == 2) && (laNguoiTao || isAdminRow || canEditRow);
+                    bool canDuyet = trangThaiPheDuyet == 1 && canDuyetRow;
+
+                    // bool canGuiDuyet = (trangThaiPheDuyet == 0 || trangThaiPheDuyet == 2)
+                                    // && (laNguoiTao || isAdmin || canEditRow);
+
+                    // bool canDuyet = trangThaiPheDuyet == 1 && nhomQuyenDuyetIdObj != DBNull.Value
+                                    // && (isAdmin || myNhomQuyenIds.Contains(Convert.ToInt64(nhomQuyenDuyetIdObj)));
+
                     list.Add(new
                     {
                         DuAnID = dr["DuAnID"],
@@ -227,9 +244,14 @@ namespace VTT.DanhMuc
                         TenPhongBan = dr["TenPhongBan"] == DBNull.Value ? "" : dr["TenPhongBan"].ToString(),
                         TienDo = dr["TienDo"],
                         TrangThaiDuAn = Convert.ToByte(dr["TrangThaiDuAn"]),
-                        LaNguoiTao = rowNguoiTaoId.HasValue && rowNguoiTaoId.Value == myUserId,
+                        LaNguoiTao = laNguoiTao,
                         CanEditRow = canEditRow,
-                        CanDeleteRow = canDeleteRow
+                        CanDeleteRow = canDeleteRow,
+                        TrangThaiPheDuyet = trangThaiPheDuyet,
+                        TenBuocHienTai = dr["TenBuocHienTai"] == DBNull.Value ? "" : dr["TenBuocHienTai"].ToString(),
+                        CanGuiDuyet = canGuiDuyet,
+                        CanDuyet = canDuyet,
+                        CanTuChoi = canDuyet
                     });
                 }
 
@@ -435,6 +457,243 @@ namespace VTT.DanhMuc
             catch (Exception ex)
             {
                 log.Error("Lỗi DeleteData: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+        // Trả về (danh sách NhomQuyenID mà tài khoản đang sở hữu, có phải Admin không)
+        /*private static (HashSet<long> NhomQuyenIds, bool IsAdmin) GetMyNhomQuyenDuyet()
+        {
+            var result = new HashSet<long>();
+            bool isAdmin = false;
+            ConnectServer db = new ConnectServer();
+            var pars = new Dictionary<string, object> { { "@TaiKhoanID", GetCurrentUserId() } };
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetNhomQuyenDuyet", pars);
+            if (ds.Tables.Count > 0)
+            {
+                foreach (DataRow dr in ds.Tables[0].Rows)
+                {
+                    long id = Convert.ToInt64(dr["NhomQuyenID"]);
+                    result.Add(id);
+                    string ma = dr["MaNhomQuyen"] == DBNull.Value ? "" : dr["MaNhomQuyen"].ToString();
+                    if (ma == "NQ_ADMIN" || ma == "NQ_CN_ADMIN") isAdmin = true;
+                }
+            }
+            return (result, isAdmin);
+        }*/
+        private static (bool CoQuyenDuyet, bool LaAdmin) KiemTraQuyenDuyet(long duAnId, long taiKhoanId)
+        {
+            ConnectServer db = new ConnectServer();
+            var pars = new Dictionary<string, object> { { "@DuAnID", duAnId }, { "@TaiKhoanID", taiKhoanId } };
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_KiemTraQuyenDuyet", pars);
+            if (ds.Tables.Count == 0 || ds.Tables[0].Rows.Count == 0)
+                return (false, false);
+            DataRow dr = ds.Tables[0].Rows[0];
+            return (Convert.ToBoolean(dr["CoQuyenDuyet"]), Convert.ToBoolean(dr["LaAdmin"]));
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object GetBuocHienTai(long duAnId)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_GetBuocHienTai",
+                    new Dictionary<string, object> { { "@DuAnID", duAnId } });
+
+                if (ds.Tables.Count == 0 || ds.Tables[0].Rows.Count == 0)
+                    return new { success = false, message = "Không tìm thấy Dự án." };
+
+                DataRow dr = ds.Tables[0].Rows[0];
+                byte trangThaiPheDuyet = dr["TrangThaiPheDuyet"] == DBNull.Value ? (byte)0 : Convert.ToByte(dr["TrangThaiPheDuyet"]);
+                object nhomQuyenDuyetIdObj = dr["NhomQuyenDuyetID"];
+
+                // Xác định Người tạo + Phòng ban/Chi nhánh để tính quyền Gửi duyệt
+                long phongBanId = 0, chiNhanhId = 0;
+                long? nguoiTaoId = null;
+                DataSet dsLookup = db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_GetPhongBanChiNhanhID",
+                    new Dictionary<string, object> { { "@DuAnID", duAnId } });
+                if (dsLookup.Tables.Count > 0 && dsLookup.Tables[0].Rows.Count > 0)
+                {
+                    DataRow drL = dsLookup.Tables[0].Rows[0];
+                    phongBanId = drL["PhongBanID"] == DBNull.Value ? 0 : Convert.ToInt64(drL["PhongBanID"]);
+                    chiNhanhId = drL["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(drL["ChiNhanhID"]);
+                    nguoiTaoId = drL["NguoiTaoID"] == DBNull.Value ? (long?)null : Convert.ToInt64(drL["NguoiTaoID"]);
+                }
+                bool laNguoiTao = nguoiTaoId.HasValue && nguoiTaoId.Value == GetCurrentUserId();
+                /*var (nhomQuyenIds, isAdmin) = GetMyNhomQuyenDuyet();
+
+                bool canGuiDuyet = (trangThaiPheDuyet == 0 || trangThaiPheDuyet == 2)
+                                && (laNguoiTao || isAdmin || CheckPermission(Trang.DA, ChucNang.U, phongBanId, chiNhanhId, nguoiTaoId));
+
+                bool canDuyet = false;
+                if (trangThaiPheDuyet == 1 && nhomQuyenDuyetIdObj != DBNull.Value)
+                    canDuyet = isAdmin || nhomQuyenIds.Contains(Convert.ToInt64(nhomQuyenDuyetIdObj));
+                */
+                var (canDuyet, isAdmin) = KiemTraQuyenDuyet(duAnId, GetCurrentUserId());
+                bool canGuiDuyet = (trangThaiPheDuyet == 0 || trangThaiPheDuyet == 2)
+                                    && (laNguoiTao || isAdmin || CheckPermission(Trang.DA, ChucNang.U, phongBanId, chiNhanhId, nguoiTaoId));
+                if (trangThaiPheDuyet != 1) canDuyet = false; // chỉ hiện Duyệt/Từ chối khi đang chờ duyệt
+                return new
+                {
+                    success = true,
+                    data = new
+                    {
+                        BuocHienTaiID = dr["BuocHienTaiID"] == DBNull.Value ? (long?)null : Convert.ToInt64(dr["BuocHienTaiID"]),
+                        TrangThaiPheDuyet = trangThaiPheDuyet,
+                        TenBuoc = dr["TenBuoc"] == DBNull.Value ? "" : dr["TenBuoc"].ToString(),
+                        TenNhomQuyen = dr["TenNhomQuyen"] == DBNull.Value ? "" : dr["TenNhomQuyen"].ToString(),
+                        CanGuiDuyet = canGuiDuyet,
+                        CanDuyet = canDuyet,
+                        CanTuChoi = canDuyet,
+                        IsAdmin = isAdmin
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi GetBuocHienTai: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object GuiDuyet(long duAnId)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                long phongBanId = 0, chiNhanhId = 0;
+                long? nguoiTaoId = null;
+                DataSet dsLookup = db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_GetPhongBanChiNhanhID",
+                    new Dictionary<string, object> { { "@DuAnID", duAnId } });
+                if (dsLookup.Tables.Count > 0 && dsLookup.Tables[0].Rows.Count > 0)
+                {
+                    DataRow dr = dsLookup.Tables[0].Rows[0];
+                    phongBanId = dr["PhongBanID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["PhongBanID"]);
+                    chiNhanhId = dr["ChiNhanhID"] == DBNull.Value ? 0 : Convert.ToInt64(dr["ChiNhanhID"]);
+                    nguoiTaoId = dr["NguoiTaoID"] == DBNull.Value ? (long?)null : Convert.ToInt64(dr["NguoiTaoID"]);
+                }
+
+                var (_, isAdmin) = KiemTraQuyenDuyet(duAnId, GetCurrentUserId());
+                bool laNguoiTao = nguoiTaoId.HasValue && nguoiTaoId.Value == GetCurrentUserId();
+
+                if (!laNguoiTao && !isAdmin && !CheckPermission(Trang.DA, ChucNang.U, phongBanId, chiNhanhId, nguoiTaoId))
+                    return new { success = false, message = "Bạn không có quyền Gửi duyệt Dự án này!" };
+
+                db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_GuiDuyet", new Dictionary<string, object> { { "@DuAnID", duAnId } });
+                return new { success = true, message = "Đã gửi duyệt!" };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi GuiDuyet: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object Duyet(long duAnId, string lyDo)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                DataSet dsCur = db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_GetBuocHienTai",
+                    new Dictionary<string, object> { { "@DuAnID", duAnId } });
+                if (dsCur.Tables.Count == 0 || dsCur.Tables[0].Rows.Count == 0)
+                    return new { success = false, message = "Không tìm thấy Dự án." };
+
+                DataRow drCur = dsCur.Tables[0].Rows[0];
+                byte trangThai = drCur["TrangThaiPheDuyet"] == DBNull.Value ? (byte)0 : Convert.ToByte(drCur["TrangThaiPheDuyet"]);
+                if (trangThai != 1)
+                    return new { success = false, message = "Dự án không ở trạng thái Đang chờ duyệt!" };
+
+                /*object nhomQuyenDuyetIdObj = drCur["NhomQuyenDuyetID"];
+                var (nhomQuyenIds, isAdmin) = GetMyNhomQuyenDuyet();
+
+                bool coQuyen = isAdmin || (nhomQuyenDuyetIdObj != DBNull.Value && nhomQuyenIds.Contains(Convert.ToInt64(nhomQuyenDuyetIdObj))
+                );
+                if (!coQuyen)
+                    return new { success = false, message = "Bạn không thuộc Nhóm quyền được phân công Duyệt Bước này!" };
+                    
+
+                if (!isAdmin && string.IsNullOrWhiteSpace(lyDo))
+                    return new { success = false, message = "Vui lòng nhập Lý do/Ý kiến khi Duyệt!", requireReason = true };
+                */
+                var (coQuyen, isAdmin) = KiemTraQuyenDuyet(duAnId, GetCurrentUserId());
+                if (!coQuyen)
+                    return new { success = false, message = "Bạn không thuộc Nhóm quyền/Phòng ban-Chi nhánh được phân công Duyệt Bước này!" };
+
+                if (!isAdmin && string.IsNullOrWhiteSpace(lyDo))
+                    return new { success = false, message = "Vui lòng nhập Lý do/Ý kiến khi Duyệt!", requireReason = true };
+
+                db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_Duyet", new Dictionary<string, object>
+                {
+                    { "@DuAnID", duAnId },
+                    { "@NguoiXuLyID", GetCurrentUserId() },
+                    { "@LyDo", string.IsNullOrEmpty(lyDo) ? DBNull.Value : (object)lyDo.Trim() }
+                });
+
+                return new { success = true, message = "Đã Duyệt thành công!" };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi Duyet: " + ex.Message, ex);
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object TuChoi(long duAnId, string lyDo)
+        {
+            if (!IsAuthenticated())
+                return new { success = false, message = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!" };
+
+            if (string.IsNullOrWhiteSpace(lyDo))
+                return new { success = false, message = "Vui lòng nhập Lý do Từ chối!", requireReason = true };
+
+            try
+            {
+                ConnectServer db = new ConnectServer();
+                DataSet dsCur = db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_GetBuocHienTai",
+                    new Dictionary<string, object> { { "@DuAnID", duAnId } });
+                if (dsCur.Tables.Count == 0 || dsCur.Tables[0].Rows.Count == 0)
+                    return new { success = false, message = "Không tìm thấy Dự án." };
+
+                DataRow drCur = dsCur.Tables[0].Rows[0];
+                byte trangThai = drCur["TrangThaiPheDuyet"] == DBNull.Value ? (byte)0 : Convert.ToByte(drCur["TrangThaiPheDuyet"]);
+                if (trangThai != 1)
+                    return new { success = false, message = "Dự án không ở trạng thái Đang chờ duyệt!" };
+
+                /*object nhomQuyenDuyetIdObj = drCur["NhomQuyenDuyetID"];
+                var (nhomQuyenIds, isAdmin) = GetMyNhomQuyenDuyet();
+
+                bool coQuyen = isAdmin || (nhomQuyenDuyetIdObj != DBNull.Value && nhomQuyenIds.Contains(Convert.ToInt64(nhomQuyenDuyetIdObj)));
+                if (!coQuyen)
+                    return new { success = false, message = "Bạn không thuộc Nhóm quyền được phân công Duyệt/Từ chối Bước này!" };
+                */
+                var (coQuyen, isAdmin) = KiemTraQuyenDuyet(duAnId, GetCurrentUserId());
+                if (!coQuyen)
+                    return new { success = false, message = "Bạn không thuộc Nhóm quyền/Phòng ban-Chi nhánh được phân công Duyệt/Từ chối Bước này!" };
+                db.ExecuteDatasetStoredProcedure("sp_v2_DuAn_TuChoi", new Dictionary<string, object>
+                {
+                    { "@DuAnID", duAnId },
+                    { "@NguoiXuLyID", GetCurrentUserId() },
+                    { "@LyDo", lyDo.Trim() }
+                });
+
+                return new { success = true, message = "Đã Từ chối!" };
+            }
+            catch (Exception ex)
+            {
+                log.Error("Lỗi TuChoi: " + ex.Message, ex);
                 return new { success = false, message = ex.Message };
             }
         }
