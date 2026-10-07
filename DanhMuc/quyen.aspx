@@ -1,114 +1,76 @@
-<%@ Page Title="Quản lý Danh mục Quyền" Language="C#" MasterPageFile="~/DanhMuc/child.Master" AutoEventWireup="true"
+<%@ Page Title="Phân quyền chi tiết" Language="C#" MasterPageFile="~/DanhMuc/child.Master" AutoEventWireup="true"
     CodeFile="quyen.aspx.cs" Inherits="VTT.DanhMuc.quyen" %>
 
     <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
         <div class="dm-container">
             <div class="dm-header">
-                <h2 class="dm-title">DANH MỤC QUYỀN</h2>
-                <button type="button" class="btn btn-primary" onclick="openModal(0)">
-                    <i class="fa fa-plus"></i> Thêm mới Quyền
-                </button>
+                <h2 class="dm-title">PHÂN QUYỀN CHI TIẾT</h2>
             </div>
 
             <div class="dm-filter">
                 <div class="filter-group">
-                    <input type="text" id="txtSearchKeyword" class="form-control"
-                        placeholder="Tìm theo Mã hoặc Tên quyền..." onkeyup="if(event.keyCode===13) loadData();" />
+                    <label>Công ty</label>
+                    <select id="ddlCongTy" class="form-control"></select>
                 </div>
                 <div class="filter-group">
-                    <select id="ddlSearchNhomQuyen" class="form-control" onchange="loadData()">
-                        <option value="">-- Tất cả nhóm quyền --</option>
+                    <label>Phòng ban</label>
+                    <select id="ddlPhongBan" class="form-control" disabled>
+                        <option value="">-- Chọn Công ty trước --</option>
                     </select>
                 </div>
                 <div class="filter-group">
-                    <select id="ddlSearchTrangThai" class="form-control" onchange="loadData()">
-                        <option value="">-- Tất cả trạng thái --</option>
-                        <option value="1">Đang hoạt động</option>
-                        <option value="0">Ngừng hoạt động</option>
+                    <label>Tài khoản (chọn 1 để sửa quyền hiện có, chọn nhiều để cấp thêm hàng loạt)</label>
+                    <select id="ddlTaiKhoan" class="form-control" multiple size="6" disabled>
                     </select>
                 </div>
-                <button type="button" class="btn btn-info" onclick="loadData()">
-                    <i class="fa fa-search"></i> Tìm kiếm
-                </button>
+                <div class="filter-group">
+                    <label>Vai trò (tùy chọn - gán cho tất cả tài khoản đã chọn)</label>
+                    <select id="ddlVaiTro" class="form-control">
+                        <option value="">-- Không gán Vai trò --</option>
+                    </select>
+                </div>
             </div>
+
+            <div id="grantModeNote" class="dm-note" style="display:none; margin: 8px 0; font-style: italic;"></div>
 
             <div class="dm-table-wrapper">
-                <table class="dm-table">
+                <table class="dm-table" id="tblQuyenGrid">
                     <thead>
                         <tr>
-                            <th style="width: 50px;">STT</th>
-                            <th style="width: 150px;">Mã Quyền</th>
-                            <th>Tên Quyền</th>
-                            <th style="width: 160px;">Nhóm quyền</th>
-                            <th style="width: 120px;">Hành động</th>
-                            <th style="width: 130px;">Đối tượng</th>
-                            <th style="width: 130px;">Trạng thái</th>
-                            <th style="width: 100px; text-align: center;">Thao tác</th>
+                            <th style="width: 40px;"></th>
+                            <th>Trang</th>
+                            <th style="width: 160px;">Xem</th>
+                            <th style="width: 160px;">Thêm</th>
+                            <th style="width: 160px;">Sửa</th>
+                            <th style="width: 160px;">Xóa</th>
                         </tr>
                     </thead>
-                    <tbody id="tbodyQuyen"></tbody>
+                    <tbody id="tbodyQuyenGrid">
+                        <tr>
+                            <td colspan="6">Vui lòng chọn Công ty / Phòng ban / Tài khoản ở trên.</td>
+                        </tr>
+                    </tbody>
                 </table>
             </div>
-        </div>
 
-        <div id="modalQuyen" class="modal-backdrop" style="display: none;">
-            <div class="modal-box">
-                <div class="modal-header">
-                    <h3 id="modalTitle">Thêm mới Quyền</h3>
-                    <span class="modal-close" onclick="closeModal()">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" id="hddQuyenID" value="0" />
-
-                    <div class="form-row">
-                        <div class="form-group col-6">
-                            <label>Mã quyền <span class="text-danger">*</span></label>
-                            <input type="text" id="txtMaQuyen" class="form-control" placeholder="VD: TAILIEU_XEM" />
-                        </div>
-                        <div class="form-group col-6">
-                            <label>Nhóm quyền</label>
-                            <select id="ddlNhomQuyen" class="form-control">
-                                <option value="">-- Không thuộc nhóm nào --</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Tên quyền <span class="text-danger">*</span></label>
-                        <input type="text" id="txtTenQuyen" class="form-control" placeholder="Nhập tên quyền..." />
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group col-6">
-                            <label>Hành động <span class="text-danger">*</span></label>
-                            <input type="text" id="txtHanhDong" class="form-control"
-                                placeholder="VD: Xem, Sửa, Xóa, Duyệt..." />
-                        </div>
-                        <div class="form-group col-6">
-                            <label>Đối tượng <span class="text-danger">*</span></label>
-                            <input type="text" id="txtDoiTuong" class="form-control"
-                                placeholder="VD: TaiLieu, DuAn..." />
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group col-6">
-                            <label>Thứ tự</label>
-                            <input type="number" id="txtThuTu" class="form-control" value="0" />
-                        </div>
-                        <div class="form-group col-6">
-                            <label>Trạng thái</label>
-                            <select id="ddlTrangThai" class="form-control">
-                                <option value="1">Đang hoạt động</option>
-                                <option value="0">Ngừng hoạt động</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Hủy bỏ</button>
-                    <button type="button" class="btn btn-success" onclick="saveData()">Lưu thông tin</button>
-                </div>
+            <!-- <div class="dm-footer" style="margin-top: 16px; text-align: right;">
+                <button type="button" class="btn btn-success" id="btnSaveQuyen">
+                    <i class="fa fa-save"></i> Lưu phân quyền
+                </button>
+            </div> -->
+            <div class="dm-footer"
+                style="margin-top: 16px; display:flex; align-items:center; justify-content:flex-end; gap:12px;">
+                <label style="margin:0;">Thời hạn hiệu lực:</label>
+                <select id="ddlThoiHan" class="form-control" style="width:180px;">
+                    <option value="permanent">Vĩnh viễn</option>
+                    <option value="8h">Tạm 8 giờ</option>
+                    <option value="custom">Tùy chỉnh (giờ)</option>
+                </select>
+                <input type="number" id="txtSoGioTuyChinh" class="form-control" style="width:100px; display:none;"
+                    min="1" placeholder="Số giờ" />
+                <button type="button" class="btn btn-success" id="btnSaveQuyen">
+                    <i class="fa fa-save"></i> Lưu phân quyền
+                </button>
             </div>
         </div>
 

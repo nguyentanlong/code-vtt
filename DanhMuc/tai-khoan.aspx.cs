@@ -13,7 +13,7 @@ namespace VTT.DanhMuc
 
         protected void Page_Load(object sender, EventArgs e) { }
 
-        private static int? GetMyCapBacTuongUng()
+        /*private static int? GetMyCapBacTuongUng()
         {
             long taiKhoanId = GetCurrentUserId();
             ConnectServer db = new ConnectServer();
@@ -23,7 +23,7 @@ namespace VTT.DanhMuc
             if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 && ds.Tables[0].Rows[0]["CapBacTuongUng"] != DBNull.Value)
                 return Convert.ToInt32(ds.Tables[0].Rows[0]["CapBacTuongUng"]);
             return 5; // Không có gán đặc biệt -> mặc định cấp Nhân viên (thấp nhất)
-        }
+        }*/
 
         [WebMethod(EnableSession = true)]
         public static object GetPermission()
@@ -171,13 +171,14 @@ namespace VTT.DanhMuc
                 if (!EvaluateScope(dataScope, targetPhongBanId, targetChiNhanhId))
                     return new { success = false, message = "Bạn không có quyền khóa/mở khóa tài khoản này!" };
 
-                if (dataScope != "CONGTY" && string.IsNullOrWhiteSpace(lyDo))
+                bool laAdmin = PermissionHelper.IsAdminOwner();
+                if (!laAdmin && string.IsNullOrWhiteSpace(lyDo))//dataScope != "CONGTY" && string.IsNullOrWhiteSpace(lyDo))
                     return new { success = false, message = "Vui lòng nhập Lý do!", requireReason = true };
 
                 var pars = new Dictionary<string, object> { { "@TaiKhoanID", taiKhoanId }, { "@IsLocked", isLocked } };
                 db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_ToggleLock", pars);
 
-                if (dataScope != "CONGTY")
+                if (!laAdmin)//(dataScope != "CONGTY")
                 {
                     var logPars = new Dictionary<string, object>
                     {
@@ -316,6 +317,9 @@ namespace VTT.DanhMuc
                 if (!hopLe)
                     return new { success = false, message = "Bạn không được phép gán Vai trò này (chỉ được gán Vai trò thấp hơn cấp của bạn)!" };
             }
+            /*lý do string dataScope = GetPermissionScope(Trang.TK, ChucNang.I);
+            if (dataScope != "CONGTY" && string.IsNullOrWhiteSpace(lyDo))
+                return new { success = false, message = "Vui lòng nhập Lý do!", requireReason = true };*/
             try
             {
                 ConnectServer db = new ConnectServer();
@@ -330,15 +334,16 @@ namespace VTT.DanhMuc
                 DataSet dsCreate = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_Create", createPars);
                 long newTaiKhoanId = Convert.ToInt64(dsCreate.Tables[0].Rows[0]["NewTaiKhoanID"]);
 
-/*                var ganPars = new Dictionary<string, object>
+                /*lý do if (dataScope != "CONGTY" && !string.IsNullOrWhiteSpace(lyDo))
                 {
-                    { "@TaiKhoanID", newTaiKhoanId },
-                    { "@NhanVienID", nhanVienId },
-                    { "@NhomQuyenID", nhomQuyenId },
-                    { "@PhongBanID", phongBanId == null ? DBNull.Value : (object)Convert.ToInt32(phongBanId) }
-                };
-                db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GanVaiTro", ganPars);*/
-                // Chỉ gọi gán Vai trò đặc biệt nếu KHÔNG phải "Nhân viên mặc định" (nhomQuyenId=0)
+                    var logPars = new Dictionary<string, object>
+                    {
+                        { "@TenBang", Trang.TK }, { "@KhoaChinh", newTaiKhoanId },
+                        { "@HanhDong", "THEM" },
+                        { "@NguoiThucHienID", GetCurrentUserId() }, { "@LyDo", lyDo }
+                    };
+                    db.ExecuteDatasetStoredProcedure("sp_v2_GhiLyDoThayDoi", logPars);
+                }*/
                 if (nhomQuyenId > 0)
                 {
                     var ganPars = new Dictionary<string, object>

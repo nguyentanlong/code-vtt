@@ -148,6 +148,53 @@
             </div>
         </div>
 
+        <div id="modalThanhVien" class="modal-backdrop" style="display: none;">
+            <div class="modal-box" style="width: 600px;">
+                <div class="modal-header">
+                    <h3>Quản lý Thành viên Dự án</h3>
+                    <span class="modal-close" onclick="closeThanhVienModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="hddThanhVienDuAnID" value="0" />
+
+                    <table class="dm-table" style="margin-bottom:16px;">
+                        <thead>
+                            <tr>
+                                <th>Họ tên</th>
+                                <th>Vai trò</th>
+                                <th style="width:60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyThanhVien"></tbody>
+                    </table>
+
+                    <div class="form-row">
+                        <div class="form-group col-6">
+                            <label>Thêm Nhân viên</label>
+                            <select id="ddlThemNhanVien" class="form-control">
+                                <option value="">-- Chọn nhân viên --</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-6">
+                            <label>Vai trò</label>
+                            <select id="ddlThemVaiTro" class="form-control">
+                                <option value="">-- Không chọn --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="chkLaQuanLy" /> Là Quản lý dự án</label>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="themThanhVien()">
+                        <i class="fa fa-plus"></i> Thêm vào Dự án
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeThanhVienModal()">Đóng</button>
+                </div>
+            </div>
+        </div>
+
         <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
         <script src="../assets/js/ui-alert.js"></script>
         <script src="../assets/js/danh-muc/du-an.js?v=<% Response.Write(VTT.libs.libs.randomVersion()); %>"></script>

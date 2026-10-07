@@ -38,34 +38,6 @@ function callWebMethod(methodName, dataObj, successCallback) {
         });
 }
 
-/*function loadPermission() {
-    return callWebMethod("GetPermission", {}, function (res) {
-        canThemPermission = res.data.canThem;
-        document.getElementById("btnAddNew").style.display = canThemPermission ? "inline-flex" : "none";
-
-        var scope = res.data.scope;
-        var chiNhanhGroup = document.getElementById("ddlSearchChiNhanh").closest(".filter-group");
-        var phongBanGroup = document.getElementById("ddlSearchPhongBan")
-            ? document.getElementById("ddlSearchPhongBan").closest(".filter-group")
-            : null; // phong-ban.aspx không có ddlSearchPhongBan riêng, chỉ nhan-vien/du-an mới có
-
-        if (scope === "CONGTY") {
-            // Admin: hiện cả 2, hoạt động cascade như cũ
-            chiNhanhGroup.style.display = "";
-            if (phongBanGroup) phongBanGroup.style.display = "";
-        } else if (scope === "CHINHANH") {
-            chiNhanhGroup.style.display = "none";
-            if (phongBanGroup) {
-                phongBanGroup.style.display = "";
-                loadPhongBanOptions(res.data.myChiNhanhId, "ddlSearchPhongBan", null);
-            }
-        } else {
-            // PHONGBAN (Trưởng phòng/Phó phòng/Nhân viên): ẩn cả 2 filter, luôn chỉ thao tác đúng phòng mình
-            chiNhanhGroup.style.display = "none";
-            if (phongBanGroup) phongBanGroup.style.display = "none";
-        }
-    });
-}*/
 function loadPermission() {
     return callWebMethod("GetPermission", {}, function (res) {
         canThemPermission = res.data.canThem;
@@ -177,6 +149,9 @@ function loadData(pageNumber) {
                 actionsHtml += `
                     <button type="button" class="btn-icon text-edit" onclick="openModal(${item.DuAnID})" title="Chỉnh sửa">
                         <i class="fa fa-edit"></i> Sửa
+                    </button>
+                    <button type="button" class="btn-icon text-info" onclick="openThanhVienModal(${item.DuAnID})" title="Thành viên">
+                        <i class="fa fa-users"></i> Thành viên
                     </button>
                 `;
             }
@@ -417,6 +392,98 @@ function tuChoiDuAn(id, lyDo) {
         .catch(function () {
             showToast("Lỗi kết nối máy chủ!", "error");
         });
+}
+function openThanhVienModal(duAnId) {
+    document.getElementById("hddThanhVienDuAnID").value = duAnId;
+
+    Promise.all([loadThanhVienList(duAnId), loadNhanVienChuaThamGia(duAnId), loadVaiTroDuAnOptions()]).then(function () {
+        document.getElementById("modalThanhVien").style.display = "flex";
+    });
+}
+
+function closeThanhVienModal() {
+    document.getElementById("modalThanhVien").style.display = "none";
+}
+
+function loadThanhVienList(duAnId) {
+    return callWebMethod("GetThanhVienList", { duAnId: duAnId }, function (res) {
+        var tbody = document.getElementById("tbodyThanhVien");
+        tbody.innerHTML = "";
+
+        if (!res.data || res.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">Chưa có thành viên nào</td></tr>';
+            return;
+        }
+
+        res.data.forEach(function (item) {
+            var tr = document.createElement("tr");
+            var vaiTroText = escapeHtml(item.TenVaiTro || "");
+            if (item.LaQuanLyDuAn) vaiTroText += ' <span class="badge badge-success">Quản lý</span>';
+
+            tr.innerHTML = `
+                <td>${escapeHtml(item.HoTen)} (${escapeHtml(item.MaNhanVien)})</td>
+                <td>${vaiTroText}</td>
+                <td style="text-align:center;">
+                    <button type="button" class="btn-icon text-delete" onclick="xoaThanhVien(${item.DuAnThanhVienID})" title="Xóa">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+function loadNhanVienChuaThamGia(duAnId) {
+    return callWebMethod("GetNhanVienChuaThamGia", { duAnId: duAnId }, function (res) {
+        var ddl = document.getElementById("ddlThemNhanVien");
+        ddl.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
+        (res.data || []).forEach(function (nv) {
+            var ghiChu = nv.SoVaiTroHienCo > 0 ? ` — đã có ${nv.SoVaiTroHienCo} vai trò` : "";
+            ddl.innerHTML += `<option value="${nv.NhanVienID}">${escapeHtml(nv.HoTen)} (${escapeHtml(nv.MaNhanVien)})</option>`;
+        });
+    });
+}
+
+function loadVaiTroDuAnOptions() {
+    return callWebMethod("GetVaiTroDuAnOptions", {}, function (res) {
+        var ddl = document.getElementById("ddlThemVaiTro");
+        ddl.innerHTML = '<option value="">-- Không chọn --</option>';
+        (res.data || []).forEach(function (vt) {
+            ddl.innerHTML += `<option value="${vt.VaiTroDuAnID}">${escapeHtml(vt.TenVaiTro)}</option>`;
+        });
+    });
+}
+
+function themThanhVien() {
+    var duAnId = parseInt(document.getElementById("hddThanhVienDuAnID").value);
+    var nhanVienId = document.getElementById("ddlThemNhanVien").value;
+    var vaiTroId = document.getElementById("ddlThemVaiTro").value;
+    var laQuanLy = document.getElementById("chkLaQuanLy").checked;
+
+    if (!nhanVienId) { showToast("Vui lòng chọn Nhân viên!", "error"); return; }
+
+    callWebMethod("ThanhVien_Add", {
+        duAnId: duAnId,
+        nhanVienId: parseInt(nhanVienId),
+        vaiTroDuAnId: vaiTroId ? parseInt(vaiTroId) : null,
+        laQuanLyDuAn: laQuanLy
+    }, function (res) {
+        showToast(res.message, "success");
+        document.getElementById("chkLaQuanLy").checked = false;
+        Promise.all([loadThanhVienList(duAnId), loadNhanVienChuaThamGia(duAnId)]);
+    });
+}
+
+function xoaThanhVien(duAnThanhVienId) {
+    var duAnId = parseInt(document.getElementById("hddThanhVienDuAnID").value);
+    showConfirmDialog("Xóa thành viên này khỏi Dự án?").then(function (ok) {
+        if (!ok) return;
+        callWebMethod("ThanhVien_Remove", { duAnId: duAnId, duAnThanhVienId: duAnThanhVienId }, function (res) {
+            showToast(res.message, "success");
+            Promise.all([loadThanhVienList(duAnId), loadNhanVienChuaThamGia(duAnId)]);
+        });
+    });
 }
 
 function escapeHtml(text) {

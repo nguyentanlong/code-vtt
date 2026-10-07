@@ -185,7 +185,7 @@ function loadLichSu() {
             tr.innerHTML = `
                 <td>${escapeHtml(item.NgayXuLyText)}</td>
                 <td>${escapeHtml(item.TenBuoc)}</td>
-                <td>${escapeHtml(item.ObjectType)} #${item.ObjectID}</td>
+                <td>${escapeHtml(item.TenDoiTuong || (item.ObjectType + ' #' + item.ObjectID))}</td>
                 <td>${escapeHtml(item.TenNguoiXuLy || '')}</td>
                 <td><span class="badge ${kq.cssClass}">${kq.text}</span></td>
                 <td>${escapeHtml(item.LyDo || '')}</td>

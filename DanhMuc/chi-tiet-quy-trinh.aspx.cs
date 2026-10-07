@@ -134,6 +134,7 @@ namespace VTT.DanhMuc
                         LichSuID = dr["LichSuID"],
                         ObjectType = dr["ObjectType"].ToString(),
                         ObjectID = dr["ObjectID"],
+                        TenDoiTuong = dr["TenDoiTuong"] == DBNull.Value ? "" : dr["TenDoiTuong"].ToString(),
                         TenBuoc = dr["TenBuoc"].ToString(),
                         TenNguoiXuLy = dr["TenNguoiXuLy"] == DBNull.Value ? "" : dr["TenNguoiXuLy"].ToString(),
                         KetQua = dr["KetQua"] == DBNull.Value ? (object)null : Convert.ToByte(dr["KetQua"]),

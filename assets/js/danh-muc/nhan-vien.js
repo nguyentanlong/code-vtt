@@ -238,9 +238,7 @@ function saveData() {
     var phongBanId = document.getElementById("ddlFormPhongBan").value;
     var chucVuId = document.getElementById("ddlFormChucVu").value;
 
-    /*if (!maNhanVien) { alert("Vui lòng nhập Mã nhân viên!"); document.getElementById("txtMaNhanVien").focus(); return; }
-    if (!hoTen) { alert("Vui lòng nhập Họ tên!"); document.getElementById("txtHoTen").focus(); return; }
-    if (!phongBanId) { alert("Vui lòng chọn Phòng ban!"); return; }*/
+
     if (!maNhanVien) {
         showAlertDialog("Vui lòng nhập Mã nhân viên!", "warning").then(function () {
             document.getElementById("txtMaNhanVien").focus();
@@ -282,14 +280,9 @@ function saveData() {
 }
 
 function deleteData(id) {
-    /*    if (confirm("Bạn có chắc chắn muốn xóa Nhân viên này khỏi hệ thống?")) {
-            callWebMethod("DeleteData", { id: id }, function (res) {
-                alert(res.message);
-                loadData();
-            });*/
     showConfirmDialog("Bạn có chắc chắn muốn xóa?").then(function (ok) {
         if (!ok) return;
-        callWebMethod("DeleteData", { id: id }, function (res) {
+        callWebMethod("DeleteData", { nhanVienId: id }, function (res) {
             showToast(res.message, "success");
             loadData();
         });

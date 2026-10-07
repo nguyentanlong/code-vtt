@@ -1,170 +1,417 @@
-var nhomQuyenOptions = [];
+(function () {
+    var trangChucNangList = [];
+    var currentPermissions = {}; // QuyenID -> { GiaTri, DataScope } (chỉ dùng khi chọn 1 tài khoản)
+    // var originalKeys = {};       // Set các QuyenID đang ALLOW lúc load (để tính diff khi Lưu)
+    // var scopeOptions = ["CONGTY", "CHINHANH", "PHONGBAN"];
+    var scopeOptions = ["CONGTY", "PHONGBAN", "TU_TAO"];
 
-document.addEventListener("DOMContentLoaded", function () {
-    loadNhomQuyenOptions().then(function () {
-        loadData();
-    });
-});
-
-function callWebMethod(methodName, dataObj, successCallback) {
-    return fetch("quyen.aspx/" + methodName, {
-        method: "POST",
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-        body: JSON.stringify(dataObj || {})
-    })
-        .then(response => response.json())
-        .then(res => {
-            var result = res.d;
-            if (result && result.success) {
-                successCallback(result);
-            } else {
-                var errorMsg = result ? result.message : "Thao tác thất bại!";
-                alert("Lỗi: " + errorMsg);
-                if (errorMsg && (errorMsg.includes("đăng nhập") || errorMsg.includes("hết hạn"))) {
-                    var currentUrl = encodeURIComponent(window.location.href);
-                    window.location.href = "../Login.aspx?returnUrl=" + currentUrl;
+    function callMethod(method, data, onSuccess) {
+        $.ajax({
+            type: "POST",
+            url: "quyen.aspx/" + method,
+            data: JSON.stringify(data || {}),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (res) {
+                var body = res.d || res;
+                if (!body.success) {
+                    // TODO: thay bằng hàm thông báo dùng chung (vd showAlert) nếu tên khác
+                    // alert(body.message || "Có lỗi xảy ra!");
+                    showAlertDialog(body.message || "Có lỗi xảy ra!", "error")
+                    return;
                 }
+                onSuccess(body.data);
+            },
+            error: function (xhr) {
+                // alert("Lỗi hệ thống: " + xhr.responseText);
+                showAlertDialog("Lỗi hệ thống: " + xhr.responseText, "error")
             }
-        })
-        .catch(err => {
-            console.error("AJAX Error:", err);
-            alert("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!");
         });
-}
+    }
 
-function loadNhomQuyenOptions() {
-    return callWebMethod("GetNhomQuyenOptions", {}, function (res) {
-        nhomQuyenOptions = res.data || [];
-
-        var ddlFilter = document.getElementById("ddlSearchNhomQuyen");
-        ddlFilter.innerHTML = '<option value="">-- Tất cả nhóm quyền --</option>';
-
-        var ddlForm = document.getElementById("ddlNhomQuyen");
-        ddlForm.innerHTML = '<option value="">-- Không thuộc nhóm nào --</option>';
-
-        nhomQuyenOptions.forEach(function (nq) {
-            var opt = `<option value="${nq.NhomQuyenID}">${escapeHtml(nq.TenNhomQuyen)}</option>`;
-            ddlFilter.innerHTML += opt;
-            ddlForm.innerHTML += opt;
+    function loadCongTy() {
+        callMethod("GetCongTyOptions", {}, function (data) {
+            var $ddl = $("#ddlCongTy").empty().append('<option value="">-- Chọn Công ty --</option>');
+            data.forEach(function (item) {
+                $ddl.append('<option value="' + item.CongTyID + '">' + item.TenCongTy + '</option>');
+            });
         });
+    }
+    function loadVaiTro() {
+        callMethod("GetVaiTroOptions", {}, function (data) {
+            var $ddl = $("#ddlVaiTro").empty().append('<option value="">-- Không gán Vai trò --</option>');
+            data.forEach(function (item) {
+                $ddl.append('<option value="' + item.NhomQuyenID + '">' + item.TenNhomQuyen + '</option>');
+            });
+        });
+    }
+
+    $(document).on("change", "#ddlThoiHan", function () {
+        $("#txtSoGioTuyChinh").toggle(this.value === "custom");
     });
-}
 
-function loadData() {
-    var keyword = document.getElementById("txtSearchKeyword").value;
-    var nhomQuyenId = document.getElementById("ddlSearchNhomQuyen").value;
-    var trangThai = document.getElementById("ddlSearchTrangThai").value;
+    function loadPhongBan(congTyId) {
+        var $ddl = $("#ddlPhongBan");
+        var $ddlTK = $("#ddlTaiKhoan");
+        $ddl.empty().prop("disabled", true);
+        $ddlTK.empty().prop("disabled", true);
+        renderGrid([]);
 
-    callWebMethod("GetList", { keyword: keyword, nhomQuyenId: nhomQuyenId, trangThai: trangThai }, function (res) {
-        var tbody = document.getElementById("tbodyQuyen");
-        tbody.innerHTML = "";
+        if (!congTyId) {
+            $ddl.append('<option value="">-- Chọn Công ty trước --</option>');
+            return;
+        }
+        callMethod("GetPhongBanByCongTy", { congTyId: congTyId }, function (data) {
+            $ddl.append('<option value="">-- Chọn Phòng ban --</option>');
+            data.forEach(function (item) {
+                $ddl.append('<option value="' + item.PhongBanID + '">' + item.TenPhongBan + '</option>');
+            });
+            $ddl.prop("disabled", false);
+        });
+    }
 
-        if (!res.data || res.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#888;">Không tìm thấy dữ liệu nào</td></tr>';
+    function loadTaiKhoan(phongBanId) {
+        var $ddlTK = $("#ddlTaiKhoan");
+        $ddlTK.empty().prop("disabled", true);
+        renderGrid([]);
+
+        if (!phongBanId) return;
+        callMethod("GetTaiKhoanByPhongBan", { phongBanId: phongBanId }, function (data) {
+            data.forEach(function (item) {
+                $ddlTK.append('<option value="' + item.TaiKhoanID + '">' + item.HoTen + ' (' + item.TenDangNhap + ')</option>');
+            });
+            $ddlTK.prop("disabled", false);
+        });
+    }
+
+    function getSelectedTaiKhoanIds() {
+        return $("#ddlTaiKhoan").val() ? $("#ddlTaiKhoan").val().map(Number) : [];
+    }
+
+    function onTaiKhoanChanged() {
+        var ids = getSelectedTaiKhoanIds();
+        currentPermissions = {};
+        // originalKeys = {};
+
+        if (ids.length === 0) {
+            $("#grantModeNote").hide();
+            renderGrid([]);
             return;
         }
 
-        res.data.forEach(function (item, index) {
-            var badgeClass = item.TrangThai === 1 ? "badge-success" : "badge-danger";
-            var statusText = item.TrangThai === 1 ? "Đang hoạt động" : "Ngừng hoạt động";
+        if (trangChucNangList.length === 0) {
+            callMethod("GetTrangChucNangList", {}, function (data) {
+                trangChucNangList = data;
+                afterTrangLoaded(ids);
+            });
+        } else {
+            afterTrangLoaded(ids);
+        }
+    }
 
-            var tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td style="text-align:center;">${index + 1}</td>
-                <td><strong>${escapeHtml(item.MaQuyen)}</strong></td>
-                <td>${escapeHtml(item.TenQuyen)}</td>
-                <td>${escapeHtml(item.TenNhomQuyen || '(Không có)')}</td>
-                <td>${escapeHtml(item.HanhDong)}</td>
-                <td>${escapeHtml(item.DoiTuong)}</td>
-                <td><span class="badge ${badgeClass}">${statusText}</span></td>
-                <td style="text-align:center;">
-                    <button type="button" class="btn-icon text-edit" onclick="openModal(${item.QuyenID})" title="Chỉnh sửa">
-                        <i class="fa fa-edit"></i> Sửa
-                    </button>
-                    <button type="button" class="btn-icon text-delete" onclick="deleteData(${item.QuyenID})" title="Xóa">
-                        <i class="fa fa-trash"></i> Xóa
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
+    /*function afterTrangLoaded(ids) {
+        if (ids.length === 1) {
+            $("#grantModeNote").text("Đang sửa quyền hiện có của 1 tài khoản — bỏ tick = thu hồi quyền.").show();
+            callMethod("GetCurrentByTaiKhoan", { taiKhoanId: ids[0] }, function (data) {
+                data.forEach(function (p) {
+                    currentPermissions[p.QuyenID] = { GiaTri: p.GiaTri, DataScope: p.DataScope };
+                    if (p.GiaTri === "ALLOW") originalKeys[p.QuyenID] = true;
+                });
+                renderGrid(trangChucNangList);
+            });
+        } else {
+            $("#grantModeNote").text("Đang chọn " + ids.length + " tài khoản — Lưu sẽ CẤP THÊM các quyền đã tick cho tất cả (không đụng quyền khác).").show();
+            renderGrid(trangChucNangList);
+        }
+    }*/
+
+    function afterTrangLoaded(ids) {
+        if (ids.length === 1) {
+            $("#grantModeNote").text("Đang sửa quyền hiện có — ô nền vàng là mặc định theo Vai trò; bỏ tick ô đó sẽ CHẶN HẲN (DENY), không chỉ xóa.").show();
+            callMethod("GetEffectiveByTaiKhoan", { taiKhoanId: ids[0] }, function (data) {
+                data.forEach(function (p) {
+                    currentPermissions[p.QuyenID] = { GiaTri: p.GiaTri, DataScope: p.DataScope, TuVaiTro: p.TuVaiTro };
+                });
+                renderGrid(trangChucNangList);
+            });
+        } else {
+            $("#grantModeNote").text("Đang chọn " + ids.length + " tài khoản — Lưu sẽ CẤP THÊM các quyền đã tick cho tất cả (không đụng quyền khác).").show();
+            renderGrid(trangChucNangList);
+        }
+    }
+
+    function scopeSelectHtml(quyenId, chucNangCode, selectedScope) {
+        var html = '<select class="form-control scope-select" data-quyen="' + quyenId + '" disabled>';
+        scopeOptions.forEach(function (s) {
+            html += '<option value="' + s + '"' + (s === selectedScope ? " selected" : "") + '>' + s + '</option>';
         });
-    });
-}
+        html += '</select>';
+        return html;
+    }
 
-function openModal(id) {
-    document.getElementById("hddQuyenID").value = id;
+    /*function renderGrid(list) {
+        var $tbody = $("#tbodyQuyenGrid").empty();
+        if (!list || list.length === 0) {
+            $tbody.append('<tr><td colspan="6">Vui lòng chọn Công ty / Phòng ban / Tài khoản ở trên.</td></tr>');
+            return;
+        }
 
-    if (id === 0) {
-        document.getElementById("modalTitle").innerText = "Thêm mới Quyền";
-        document.getElementById("txtMaQuyen").value = "";
-        document.getElementById("txtMaQuyen").readOnly = false;
-        document.getElementById("txtTenQuyen").value = "";
-        document.getElementById("ddlNhomQuyen").value = "";
-        document.getElementById("txtHanhDong").value = "";
-        document.getElementById("txtDoiTuong").value = "";
-        document.getElementById("txtThuTu").value = "0";
-        document.getElementById("ddlTrangThai").value = "1";
-        document.getElementById("modalQuyen").style.display = "flex";
-    } else {
-        document.getElementById("modalTitle").innerText = "Chỉnh sửa Quyền";
-        callWebMethod("GetById", { id: id }, function (res) {
-            var d = res.data;
-            document.getElementById("txtMaQuyen").value = d.MaQuyen;
-            document.getElementById("txtMaQuyen").readOnly = true;
-            document.getElementById("txtTenQuyen").value = d.TenQuyen;
-            document.getElementById("ddlNhomQuyen").value = d.NhomQuyenID || "";
-            document.getElementById("txtHanhDong").value = d.HanhDong;
-            document.getElementById("txtDoiTuong").value = d.DoiTuong;
-            document.getElementById("txtThuTu").value = d.ThuTu;
-            document.getElementById("ddlTrangThai").value = d.TrangThai;
-            document.getElementById("modalQuyen").style.display = "flex";
+        var byTrang = {};
+        list.forEach(function (row) {
+            if (!byTrang[row.TrangID]) byTrang[row.TrangID] = { TenTrang: row.TenTrang, items: {} };
+            byTrang[row.TrangID].items[row.MaChucNang] = row;
+        });
+
+        var thuTuChucNang = ["XEM", "THEM", "SUA", "XOA"];
+
+        Object.keys(byTrang).forEach(function (trangId) {
+            var trang = byTrang[trangId];
+            var $tr = $('<tr></tr>');
+            $tr.append('<td><input type="checkbox" class="chk-trang" data-trang="' + trangId + '" /></td>');
+            $tr.append('<td>' + trang.TenTrang + '</td>');
+
+            thuTuChucNang.forEach(function (ma) {
+                var item = trang.items[ma];
+                if (!item || !item.QuyenID) {
+                    $tr.append('<td class="text-muted">Chưa cấu hình</td>');
+                    return;
+                }
+                var existed = currentPermissions[item.QuyenID];
+                var checked = !!existed;
+                var scope = existed ? existed.DataScope : "CONGTY";
+
+                var $td = $('<td></td>');
+                $td.append(
+                    '<input type="checkbox" class="chk-quyen" data-quyen="' + item.QuyenID + '" data-trang="' + trangId + '"' + (checked ? " checked" : "") + ' /> '
+                );
+                $td.append(scopeSelectHtml(item.QuyenID, ma, scope));
+                $tr.append($td);
+            });
+
+            $tbody.append($tr);
+        });
+
+        // Bật/tắt dropdown scope theo checkbox tương ứng
+        $tbody.find(".chk-quyen").on("change", function () {
+            var $scope = $(this).closest("td").find(".scope-select");
+            $scope.prop("disabled", !this.checked);
+        }).trigger("change");
+
+        // Checkbox tổng theo Trang: tick/bỏ tick toàn bộ CRUD của trang đó
+        $tbody.find(".chk-trang").on("change", function () {
+            var trangId = $(this).data("trang");
+            var checked = this.checked;
+            $tbody.find('.chk-quyen[data-trang="' + trangId + '"]').prop("checked", checked).trigger("change");
+        });
+    }*/
+    function renderGrid(list) {
+        var $tbody = $("#tbodyQuyenGrid").empty();
+        if (!list || list.length === 0) {
+            $tbody.append('<tr><td colspan="6">Vui lòng chọn Công ty / Phòng ban / Tài khoản ở trên.</td></tr>');
+            return;
+        }
+
+        var byTrang = {};
+        list.forEach(function (row) {
+            if (!byTrang[row.TrangID]) byTrang[row.TrangID] = { TenTrang: row.TenTrang, items: {} };
+            byTrang[row.TrangID].items[row.MaChucNang] = row;
+        });
+
+        var thuTuChucNang = ["XEM", "THEM", "SUA", "XOA"];
+
+        Object.keys(byTrang).forEach(function (trangId) {
+            var trang = byTrang[trangId];
+            var $tr = $('<tr></tr>');
+            $tr.append('<td><input type="checkbox" class="chk-trang" data-trang="' + trangId + '" /></td>');
+            $tr.append('<td>' + trang.TenTrang + '</td>');
+
+            thuTuChucNang.forEach(function (ma) {
+                var item = trang.items[ma];
+                if (!item || !item.QuyenID) {
+                    $tr.append('<td class="text-muted">Chưa cấu hình</td>');
+                    return;
+                }
+                var existed = currentPermissions[item.QuyenID];
+                var checked = !!existed && existed.GiaTri === "ALLOW";
+                var scope = existed ? existed.DataScope : "CONGTY";
+                var tuVaiTro = existed && existed.TuVaiTro;
+
+                var $td = $('<td' + (tuVaiTro ? ' style="background:#fff8e1;" title="Mặc định theo Vai trò"' : '') + '></td>');
+                $td.append(
+                    '<input type="checkbox" class="chk-quyen" data-quyen="' + item.QuyenID + '" data-trang="' + trangId + '"' + (checked ? " checked" : "") + ' /> '
+                );
+                $td.append(scopeSelectHtml(item.QuyenID, ma, scope));
+                $tr.append($td);
+            });
+
+            $tbody.append($tr);
+        });
+
+        $tbody.find(".chk-quyen").on("change", function () {
+            var $scope = $(this).closest("td").find(".scope-select");
+            $scope.prop("disabled", !this.checked);
+        }).trigger("change");
+
+        $tbody.find(".chk-trang").on("change", function () {
+            var trangId = $(this).data("trang");
+            var checked = this.checked;
+            $tbody.find('.chk-quyen[data-trang="' + trangId + '"]').prop("checked", checked).trigger("change");
         });
     }
-}
 
-function closeModal() {
-    document.getElementById("modalQuyen").style.display = "none";
-}
+    /*function collectChanges() {
+        var grants = [];
+        var revokes = [];
 
-function saveData() {
-    var id = parseInt(document.getElementById("hddQuyenID").value);
-    var maQuyen = document.getElementById("txtMaQuyen").value.trim();
-    var tenQuyen = document.getElementById("txtTenQuyen").value.trim();
-    var hanhDong = document.getElementById("txtHanhDong").value.trim();
-    var doiTuong = document.getElementById("txtDoiTuong").value.trim();
-    var nhomQuyenId = document.getElementById("ddlNhomQuyen").value;
+        $("#tbodyQuyenGrid .chk-quyen").each(function () {
+            var quyenId = parseInt($(this).data("quyen"), 10);
+            var checked = this.checked;
+            var scope = $(this).closest("td").find(".scope-select").val();
+            var wasAllowed = !!originalKeys[quyenId];
 
-    if (!maQuyen) { alert("Vui lòng nhập Mã quyền!"); document.getElementById("txtMaQuyen").focus(); return; }
-    if (!tenQuyen) { alert("Vui lòng nhập Tên quyền!"); document.getElementById("txtTenQuyen").focus(); return; }
-    if (!hanhDong) { alert("Vui lòng nhập Hành động!"); document.getElementById("txtHanhDong").focus(); return; }
-    if (!doiTuong) { alert("Vui lòng nhập Đối tượng!"); document.getElementById("txtDoiTuong").focus(); return; }
+            if (checked) {
+                grants.push({ QuyenID: quyenId, DataScope: scope });
+            } else if (wasAllowed) {
+                revokes.push(quyenId);
+            }
+        });
 
-    var payload = {
-        quyenId: id,
-        nhomQuyenId: nhomQuyenId ? parseInt(nhomQuyenId) : null,
-        maQuyen: maQuyen,
-        tenQuyen: tenQuyen,
-        hanhDong: hanhDong,
-        doiTuong: doiTuong,
-        thuTu: parseInt(document.getElementById("txtThuTu").value) || 0,
-        trangThai: parseInt(document.getElementById("ddlTrangThai").value)
-    };
+        return { grants: grants, revokes: revokes };
+    }
 
-    callWebMethod("SaveData", payload, function (res) {
-        alert(res.message);
-        closeModal();
-        loadData();
-    });
-}
+    function saveData() {
+        var ids = getSelectedTaiKhoanIds();
+        if (ids.length === 0) {
+            // alert("Vui lòng chọn ít nhất 1 Tài khoản!");
+            showAlertDialog("Vui lòng chọn ít nhất 1 Tài Khoản!", "info")
+            return;
+        }
 
-function deleteData(id) {
-    if (confirm("Bạn có chắc chắn muốn xóa Quyền này khỏi hệ thống?")) {
-        callWebMethod("DeleteData", { id: id }, function (res) {
-            alert(res.message);
-            loadData();
+        /*var changes = collectChanges();
+        if (changes.grants.length === 0 && changes.revokes.length === 0) {
+            // alert("Không có thay đổi nào để lưu.");
+            showAlertDialog("Không có thay đổi nào để lưu!!", "info")
+            return;
+        }*
+        var changes = collectChanges();
+        var vaiTroDaChon = $("#ddlVaiTro").val();
+
+        if (changes.grants.length === 0 && changes.revokes.length === 0 && !vaiTroDaChon) {
+            showAlertDialog("Không có thay đổi nào để lưu!!", "info")
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: "quyen.aspx/SaveData",
+            /*data: JSON.stringify({
+                taiKhoanIdsJson: JSON.stringify(ids),
+                grantsJson: JSON.stringify(changes.grants),
+                revokeQuyenIdsJson: JSON.stringify(changes.revokes)
+            }),*
+            data: JSON.stringify({
+                taiKhoanIdsJson: JSON.stringify(ids),
+                grantsJson: JSON.stringify(changes.grants),
+                revokeQuyenIdsJson: JSON.stringify(changes.revokes),
+                vaiTroNhomQuyenId: $("#ddlVaiTro").val() ? parseInt($("#ddlVaiTro").val()) : null,
+                phongBanIdChoVaiTro: $("#ddlPhongBan").val() ? parseInt($("#ddlPhongBan").val()) : null,
+                thoiHanLoai: $("#ddlThoiHan").val(),
+                soGioTuyChinh: $("#txtSoGioTuyChinh").val() ? parseInt($("#txtSoGioTuyChinh").val()) : null
+            }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (res) {
+                var body = res.d || res;
+                // alert(body.message);
+                showAlertDialog(body.message, "info")
+                if (body.success) onTaiKhoanChanged();
+            },
+            error: function (xhr) {
+                // alert("Lỗi hệ thống: " + xhr.responseText);
+                showAlertDialog("Lỗi hệ thống: " + xhr.responseText, "error")
+            }
+        });
+    }*/
+    function collectChanges() {
+        var grants = [];
+        var denies = [];
+        var revokes = [];
+
+        $("#tbodyQuyenGrid .chk-quyen").each(function () {
+            var quyenId = parseInt($(this).data("quyen"), 10);
+            var checked = this.checked;
+            var scope = $(this).closest("td").find(".scope-select").val();
+            var original = currentPermissions[quyenId];
+            var wasAllowed = original && original.GiaTri === "ALLOW";
+
+            if (checked) {
+                if (!wasAllowed || original.DataScope !== scope) {
+                    grants.push({ QuyenID: quyenId, DataScope: scope });
+                }
+            } else if (wasAllowed) {
+                if (original.TuVaiTro) {
+                    denies.push({ QuyenID: quyenId, DataScope: original.DataScope });
+                } else {
+                    revokes.push(quyenId);
+                }
+            }
+        });
+
+        return { grants: grants, denies: denies, revokes: revokes };
+    }
+
+    function saveData() {
+        var ids = getSelectedTaiKhoanIds();
+        if (ids.length === 0) {
+            alert("Vui lòng chọn ít nhất 1 Tài khoản!");
+            return;
+        }
+
+        var changes = collectChanges();
+        var vaiTroDaChon = $("#ddlVaiTro").val();
+
+        if (changes.grants.length === 0 && changes.denies.length === 0 && changes.revokes.length === 0 && !vaiTroDaChon) {
+            alert("Không có thay đổi nào để lưu.");
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: "quyen.aspx/SaveData",
+            data: JSON.stringify({
+                taiKhoanIdsJson: JSON.stringify(ids),
+                grantsJson: JSON.stringify(changes.grants),
+                denyGrantsJson: JSON.stringify(changes.denies),
+                revokeQuyenIdsJson: JSON.stringify(changes.revokes),
+                vaiTroNhomQuyenId: $("#ddlVaiTro").val() ? parseInt($("#ddlVaiTro").val()) : null,
+                phongBanIdChoVaiTro: $("#ddlPhongBan").val() ? parseInt($("#ddlPhongBan").val()) : null,
+                thoiHanLoai: $("#ddlThoiHan").val(),
+                soGioTuyChinh: $("#txtSoGioTuyChinh").val() ? parseInt($("#txtSoGioTuyChinh").val()) : null
+            }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (res) {
+                var body = res.d || res;
+                alert(body.message);
+                if (body.success) onTaiKhoanChanged();
+            },
+            error: function (xhr) {
+                alert("Lỗi hệ thống: " + xhr.responseText);
+            }
         });
     }
-}
+
+    $(document).ready(function () {
+        loadCongTy();
+        loadVaiTro();
+
+        $("#ddlCongTy").on("change", function () { loadPhongBan($(this).val()); });
+        $("#ddlPhongBan").on("change", function () { loadTaiKhoan($(this).val()); });
+        $("#ddlTaiKhoan").on("change", onTaiKhoanChanged);
+        $("#btnSaveQuyen").on("click", saveData);
+
+    });
+})();
 
 function escapeHtml(text) {
     if (!text) return "";

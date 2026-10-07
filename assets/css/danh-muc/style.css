@@ -1383,6 +1383,33 @@
     gap: 15px;
   }
 
+  /* css hr */
+  /* Listbox của bạn */
+  #ddlTaiKhoan {
+    border-radius: 6px;
+    padding: 0;
+  }
+
+  /* Mỗi option */
+  #ddlTaiKhoan option {
+    padding: 8px 12px !important;
+    border-bottom: 1.5px solid transparent;
+    /* Đây là thanh gradient bạn muốn */
+    border-image-source: linear-gradient(135deg, #00c6ff 0%, #ffffff 40%, #8a2be2 100%);
+    border-image-slice: 1;
+  }
+
+  /* Bỏ vạch ở dòng cuối cùng */
+  #ddlTaiKhoan option:last-child {
+    border-bottom: none;
+  }
+
+  /* Cho đẹp hơn khi chọn */
+  #ddlTaiKhoan option:checked {
+    background: linear-gradient(135deg, #00c6ff 0%, #8a2be2 100%) !important;
+    color: #fff;
+  }
+
   .col-6 {
     flex: 1;
   }

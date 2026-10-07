@@ -717,6 +717,52 @@ namespace VTT.libs
     }
 
 
+
+    public static class Trang
+    {
+        public const string NV = "NHANVIEN";
+        public const string PB = "PHONGBAN";
+        public const string DA = "DUAN";
+        public const string GD = "GIAIDOAN";
+        public const string QT = "QUYTRINH";
+        public const string BP = "BOPHAN";
+        public const string TK = "TAIKHOAN";
+        public const string CT = "CONGTY";
+        public const string VTDA = "VAITRODUAN";
+        public const string NQ = "NHOMQUYEN";
+        public const string LTL = "LOAITAILIEU";
+        public const string NTH = "NGUONTRITHUC";
+        public const string TNAI = "TACNHANAI";
+        public const string DMR = "DANHMUCRULE";
+        public const string CD = "CHUCDANH";
+        public const string KRM = "KNOWLEDGEROADMAP";
+        public const string LCT = "LOAICONGTRINH";
+        // Thêm dần khi refactor các trang tiếp theo: GiaiDoan, QuyTrinh, BoPhan...
+    }
+
+    /// <summary>
+    /// Hằng số MaChucNang — khớp đúng cột ChucNang.MaChucNang đã seed trong DB.
+    /// </summary>
+    public static class ChucNang
+    {
+        public const string R = "XEM";
+        public const string I = "THEM";
+        public const string U = "SUA";
+        public const string D = "XOA";
+        public const string ALL = "ALL";
+    }
+
+    [Obsolete("Tạm thời, cần refactor trang dùng class này sang CheckPermission()")]
+    public class AccessScope
+    {
+        public bool IsFullAccess { get; set; }
+        public bool IsTongCtyAccess { get; set; }
+        public bool IsChiNhanhAccess { get; set; }
+        public long CongTyID { get; set; }
+        public long PhongBanID { get; set; }
+    }
+
+
     // ============== DB CONTEXT ==============
     public class VTTDbContext : Microsoft.EntityFrameworkCore.DbContext
     {

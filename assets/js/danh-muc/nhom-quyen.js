@@ -102,12 +102,14 @@ function saveData() {
     var tenNhomQuyen = document.getElementById("txtTenNhomQuyen").value.trim();
 
     if (!maNhomQuyen) {
-        alert("Vui lòng nhập Mã nhóm quyền!");
+        // alert("Vui lòng nhập Mã nhóm quyền!");
+        showToast("Vui lòng nhập Mã nhóm quyền!", "error");
         document.getElementById("txtMaNhomQuyen").focus();
         return;
     }
     if (!tenNhomQuyen) {
-        alert("Vui lòng nhập Tên nhóm quyền!");
+        // alert("Vui lòng nhập Tên nhóm quyền!");
+        showToast("Vui lòng nhập Tên nhóm quyền!", "error");
         document.getElementById("txtTenNhomQuyen").focus();
         return;
     }
@@ -121,7 +123,7 @@ function saveData() {
     };
 
     callWebMethod("SaveData", payload, function (res) {
-        alert(res.message);
+        showToast(res.message, "success");
         closeModal();
         loadData();
     });
@@ -130,7 +132,7 @@ function saveData() {
 function deleteData(id) {
     if (confirm("Bạn có chắc chắn muốn xóa Nhóm quyền này khỏi hệ thống? (Xóa vĩnh viễn, không thể khôi phục)")) {
         callWebMethod("DeleteData", { id: id }, function (res) {
-            alert(res.message);
+            showToast(res.message, "success");
             loadData();
         });
     }

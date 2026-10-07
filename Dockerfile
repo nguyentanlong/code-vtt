@@ -21,6 +21,8 @@ RUN apt-get update --allow-releaseinfo-change && \
 # Bước 3: Thiết lập thư mục làm việc và nạp toàn bộ code vào
 WORKDIR /app
 COPY . /app
+#build mới thu vien
+RUN msbuild /p:Configuration=Release VTT.csproj
 
 # Mở cổng mạng kết nối 5959
 EXPOSE 5959

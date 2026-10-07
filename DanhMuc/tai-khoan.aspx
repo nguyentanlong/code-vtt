@@ -1,6 +1,5 @@
 <%@ Page Title="Quản lý Tài khoản" Language="C#" MasterPageFile="~/DanhMuc/child.Master" AutoEventWireup="true"
     CodeFile="tai-khoan.aspx.cs" Inherits="VTT.DanhMuc.tai_khoan" %>
-
     <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
         <div class="dm-container">
             <div class="dm-header">

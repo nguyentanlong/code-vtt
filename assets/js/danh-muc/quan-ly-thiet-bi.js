@@ -28,42 +28,6 @@ function callWebMethod(methodName, dataObj, successCallback) {
         });
 }
 
-/*function loadData() {
-    var myDeviceId = getOrCreateDeviceId();
-
-    callWebMethod("GetList", { myDeviceId: myDeviceId }, function (res) {
-        var tbody = document.getElementById("tbodyThietBi");
-        tbody.innerHTML = "";
-
-        if (!res.data || res.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">Không có thiết bị nào đang hoạt động</td></tr>';
-            return;
-        }
-
-        res.data.forEach(function (item) {
-            var tenHienThi = escapeHtml(item.TenThietBi);
-            if (item.LaThietBiHienTai) {
-                tenHienThi += ' <span class="badge badge-success" style="margin-left:6px;">Thiết bị này</span>';
-            }
-
-            var actionHtml = item.LaThietBiHienTai
-                ? '<span style="color:#94a3b8; font-size:12px;">Đang dùng</span>'
-                : `<button type="button" class="btn-icon text-delete" onclick="deleteData(${item.ThietBiID})" title="Đăng xuất thiết bị này">
-                       <i class="fa fa-right-from-bracket"></i> Đăng xuất
-                   </button>`;
-
-            var tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${tenHienThi}</td>
-                <td>${escapeHtml(item.IPDangNhap || '')}</td>
-                <td>${item.LanDangNhapDauText}</td>
-                <td>${item.LanHoatDongCuoiText}</td>
-                <td style="text-align:center;">${actionHtml}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    });
-}*/
 function loadData() {
     var myDeviceId = getOrCreateDeviceId();
 

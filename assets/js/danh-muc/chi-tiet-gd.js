@@ -28,16 +28,17 @@ function callWebMethod(methodName, dataObj, successCallback) {
                 successCallback(result);
             } else {
                 var errorMsg = result ? result.message : "Thao tác thất bại!";
-                alert("Lỗi: " + errorMsg);
+                // alert("Lỗi: " + errorMsg);
+                showToast("lỗi" + errorMsg, "error");
                 if (errorMsg && (errorMsg.includes("đăng nhập") || errorMsg.includes("hết hạn"))) {
                     var currentUrl = encodeURIComponent(window.location.href);
-                    window.location.href = "../Login.aspx?returnUrl=" + currentUrl;
+                    window.location.href = "../login.aspx?returnUrl=" + currentUrl;
                 }
             }
         })
         .catch(err => {
             console.error("AJAX Error:", err);
-            alert("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!");
+            showToast("Lỗi kết nối máy chủ hoặc hệ thống không phản hồi!", "error");
         });
 }
 
@@ -80,6 +81,8 @@ function formatDateVN(isoString) {
 
 function loadData() {
     callWebMethod("GetList", { duAnId: currentDuAnId }, function (res) {
+        var canEdit = !!res.canEdit;
+        document.getElementById("btnSync").style.display = canEdit ? "inline-flex" : "none";
         var tbody = document.getElementById("tbodyTimeline");
         tbody.innerHTML = "";
 
@@ -90,6 +93,12 @@ function loadData() {
 
         res.data.forEach(function (item, index) {
             var st = trangThaiConfig[item.TrangThai] || trangThaiConfig[0];
+
+            var actionHtml = canEdit
+                ? `<button type="button" class="btn-icon text-edit" onclick="openModal(${item.DuAnGiaiDoanID})" title="Sửa">
+                        <i class="fa fa-edit"></i> Sửa
+                   </button>`
+                : '<span style="color:#94a3b8; font-size:12px;">Chỉ xem</span>';
 
             var keHoachText = `${formatDateVN(item.KeHoachBatDau)}<br/><span style="color:#94a3b8;">&rarr; ${formatDateVN(item.KeHoachKetThuc)}</span>`;
             var thucTeText = `${formatDateVN(item.ThucTeBatDau)}<br/><span style="color:#94a3b8;">&rarr; ${formatDateVN(item.ThucTeKetThuc)}</span>`;
@@ -113,11 +122,7 @@ function loadData() {
                     <span class="badge-status ${st.cssClass}">${st.text}</span>
                 </td>
                 <td>${escapeHtml(item.GhiChu || '')}</td>
-                <td style="text-align:center;">
-                    <button type="button" class="btn-icon text-edit" onclick="openModal(${item.DuAnGiaiDoanID})" title="Sửa">
-                        <i class="fa fa-edit"></i> Sửa
-                    </button>
-                </td>
+                <td style="text-align:center;">${actionHtml}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -155,7 +160,8 @@ function saveData() {
     var tienDo = parseFloat(document.getElementById("txtTienDo").value) || 0;
 
     if (tienDo < 0 || tienDo > 100) {
-        alert("Tiến độ phải trong khoảng 0 - 100!");
+        // alert("Tiến độ phải trong khoảng 0 - 100!");
+        showToast("Tiến độ phải trong khoảng 0 - 100!", "info");
         return;
     }
 
@@ -172,7 +178,7 @@ function saveData() {
     };
 
     callWebMethod("SaveData", payload, function (res) {
-        alert(res.message);
+        showToast(res.message, "success");
         closeModal();
         loadData();
     });
@@ -180,7 +186,7 @@ function saveData() {
 
 function syncTimeline() {
     callWebMethod("Sync", { duAnId: currentDuAnId }, function (res) {
-        alert(res.message);
+        showToast(res.message, "success");
         loadData();
     });
 }

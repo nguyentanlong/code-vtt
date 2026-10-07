@@ -39,13 +39,13 @@ namespace VTT.DanhMuc
                 try
                 {
                     var db = new VTT.libs.ConnectServer();
-                    var ds = db.ExecuteDataset("SELECT TOP 1 Username FROM dbo.DMTaiKhoan WHERE TaiKhoanID = @TaiKhoanID", new Dictionary<string, object>
+                    var ds = db.ExecuteDataset("SELECT TOP 1 TenDangNhap FROM dbo.TaiKhoan WHERE TaiKhoanID = @TaiKhoanID", new Dictionary<string, object>
                     {
                         { "@TaiKhoanID", Session["TaiKhoanID"] }
                     });
                     if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0)
                     {
-                        displayName = ds.Tables[0].Rows[0]["Username"].ToString();
+                        displayName = ds.Tables[0].Rows[0]["TenDangNhap"].ToString();
                     }
                 }
                 catch

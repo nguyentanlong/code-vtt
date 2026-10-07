@@ -36,7 +36,7 @@
                         <tr>
                             <th style="width: 150px;">Thời gian</th>
                             <th style="width: 160px;">Bước</th>
-                            <th style="width: 150px;">Đối tượng</th>
+                            <th style="width: 150px;">Dự án</th>
                             <th style="width: 150px;">Người xử lý</th>
                             <th style="width: 100px;">Kết quả</th>
                             <th>Lý do</th>

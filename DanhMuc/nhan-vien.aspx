@@ -1,6 +1,5 @@
 ﻿<%@ Page Title="Quản lý Nhân viên" Language="C#" MasterPageFile="~/DanhMuc/child.Master" AutoEventWireup="true"
     CodeFile="nhan-vien.aspx.cs" Inherits="VTT.DanhMuc.nhan_vien" %>
-
     <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
         <div class="dm-container">
             <div class="dm-header">

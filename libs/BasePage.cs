@@ -1,14 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Web;
 using System.Web.UI;
 
 namespace VTT.libs
 {
-    public class AccessScope
-    {
-        public bool IsFullAccess { get; set; }  // true = Admin/IT, CRUD toàn hệ thống
-        public long PhongBanID { get; set; }    // phòng ban của tài khoản hiện tại
-    }
     public class BasePage : Page
     {
         protected override void OnInit(EventArgs e)
@@ -59,29 +56,57 @@ namespace VTT.libs
             return 0;
         }
 // Long thêm
-private static readonly string[] FullAccessRoleCodes = { "ADMIN", "IT" };
+        private static readonly string[] FullAccessRoleCodes = { "ADMIN", "IT" };
 
-    protected static AccessScope GetCurrentAccessScope()
-    {
-        var maVaiTro = System.Web.HttpContext.Current.Session["MaVaiTro"] as string ?? "";
-        var phongBanObj = System.Web.HttpContext.Current.Session["PhongBanID"];
-
-        return new AccessScope
+        protected static AccessScope GetCurrentAccessScope()
         {
-            IsFullAccess = Array.Exists(FullAccessRoleCodes, code => code.Equals(maVaiTro, StringComparison.OrdinalIgnoreCase)),
-            PhongBanID = phongBanObj != null ? Convert.ToInt64(phongBanObj) : 0
-        };
-    }
+            var maVaiTro = System.Web.HttpContext.Current.Session["MaVaiTro"] as string ?? "";
+            var phongBanObj = System.Web.HttpContext.Current.Session["PhongBanID"];
 
-    /// <summary>
-    /// Kiểm tra tài khoản hiện tại có được SỬA/XÓA (CRUD) dữ liệu thuộc 1 Phòng ban cụ thể không.
-    /// Admin/IT luôn được phép. Người khác chỉ được phép nếu đúng Phòng ban của mình.
-    /// </summary>
-    protected static bool CanEdit(long targetPhongBanId)
-    {
-        var scope = GetCurrentAccessScope();
-        return scope.IsFullAccess || scope.PhongBanID == targetPhongBanId;
-    }
+            return new AccessScope
+            {
+                IsFullAccess = Array.Exists(FullAccessRoleCodes, code => code.Equals(maVaiTro, StringComparison.OrdinalIgnoreCase)),
+                PhongBanID = phongBanObj != null ? Convert.ToInt64(phongBanObj) : 0
+            };
+        }
 
+        /// <summary>
+        /// Kiểm tra tài khoản hiện tại có được SỬA/XÓA (CRUD) dữ liệu thuộc 1 Phòng ban cụ thể không.
+        /// Admin/IT luôn được phép. Người khác chỉ được phép nếu đúng Phòng ban của mình.
+        /// </summary>
+        protected static bool CanEdit(long targetPhongBanId)
+        {
+            var scope = GetCurrentAccessScope();
+            return scope.IsFullAccess || scope.PhongBanID == targetPhongBanId;
+        }
+
+
+
+            public static long GetCurrentPhongBanId() => PermissionHelper.GetCurrentPhongBanId();
+            public static long GetCurrentChiNhanhId() => PermissionHelper.GetCurrentChiNhanhId();
+            protected static int GetCurrentCapBac() => PermissionHelper.GetCurrentCapBac();
+
+            protected static string GetPermissionScope(string maTrang, string maChucNang)
+                => PermissionHelper.GetPermissionScope(maTrang, maChucNang);
+
+            protected static bool CheckPermission(string maTrang, string maChucNang, long targetPhongBanId = 0, long targetChiNhanhId = 0, long? nguoiTaoId = null)
+                => PermissionHelper.CheckPermission(maTrang, maChucNang, targetPhongBanId, targetChiNhanhId, nguoiTaoId);
+
+            protected static bool EvaluateScope(string dataScope, long targetPhongBanId = 0, long targetChiNhanhId = 0, long? nguoiTaoId = null)
+                => PermissionHelper.EvaluateScope(dataScope, targetPhongBanId, targetChiNhanhId, nguoiTaoId);
+
+
+        protected static int GetMyCapBacTuongUng()
+        {
+            long taiKhoanId = GetCurrentUserId();
+            if (taiKhoanId == 0) return 5; 
+            ConnectServer db = new ConnectServer();
+            var pars = new Dictionary<string, object> { { "@TaiKhoanID", taiKhoanId } };
+            DataSet ds = db.ExecuteDatasetStoredProcedure("sp_v2_TaiKhoan_GetCapBacTuongUng", pars);
+
+            if (ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 && ds.Tables[0].Rows[0]["CapBacTuongUng"] != DBNull.Value)
+                return Convert.ToInt32(ds.Tables[0].Rows[0]["CapBacTuongUng"]);
+            return 5; // Không có gán đặc biệt -> mặc định cấp Nhân viên (thấp nhất)
+        }
     }
 }
